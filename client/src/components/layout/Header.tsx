@@ -88,23 +88,23 @@ export function Header() {
   const initials = currentUser?.name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'US';
 
   return (
-    <header className="h-14 border-b border-border bg-card sticky top-0 z-20 px-4 flex items-center justify-between gap-3 shrink-0">
+    <header className="h-14 border-b border-border bg-card/95 backdrop-blur-sm sticky top-0 z-20 px-5 flex items-center justify-between gap-3 shrink-0">
       {/* Left: Search */}
-      <div className="flex-1 max-w-xs">
+      <div className="flex-1 max-w-[280px]">
         <button
-          className="flex items-center gap-2 w-full h-8 px-3 text-sm text-muted-foreground bg-muted/60 border border-border rounded-md hover:bg-muted hover:border-border/80 transition-colors group"
+          className="flex items-center gap-2 w-full h-8 px-3 text-sm text-muted-foreground bg-muted/50 border border-border/70 rounded-lg hover:bg-muted/80 hover:border-border transition-all duration-150 group"
           onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
         >
-          <Search size={13} className="shrink-0" />
-          <span className="flex-1 text-right text-xs">بحث سريع...</span>
-          <kbd className="hidden sm:flex items-center gap-0.5 font-mono text-[10px] bg-background border border-border rounded px-1 py-0.5 text-muted-foreground/60">
-            <Command size={9} />K
+          <Search size={12} className="shrink-0 text-muted-foreground/60 group-hover:text-muted-foreground transition-colors" />
+          <span className="flex-1 text-right text-[12px] text-muted-foreground/70">بحث سريع...</span>
+          <kbd className="hidden sm:flex items-center gap-0.5 font-mono text-[10px] bg-background/80 border border-border/60 rounded px-1.5 py-0.5 text-muted-foreground/50 leading-none">
+            <Command size={8} />K
           </kbd>
         </button>
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         {/* Language */}
         <Button
           variant="ghost"
@@ -133,7 +133,7 @@ export function Header() {
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground relative">
               <Bell size={15} />
               {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
+                <span className="absolute top-[7px] right-[7px] w-[7px] h-[7px] bg-red-500 rounded-full ring-2 ring-card" />
               )}
             </Button>
           </DropdownMenuTrigger>
@@ -178,7 +178,7 @@ export function Header() {
         </DropdownMenu>
 
         {/* Divider */}
-        <div className="w-px h-5 bg-border mx-1" />
+        <div className="w-px h-4 bg-border mx-1.5" />
 
         {/* User Menu */}
         <DropdownMenu dir="rtl">

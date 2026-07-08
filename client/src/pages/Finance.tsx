@@ -256,7 +256,7 @@ export default function Finance() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border border-border shadow-sm">
+        <Card className="card-hover-lift border border-border shadow-sm">
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
@@ -277,7 +277,7 @@ export default function Finance() {
           </CardContent>
         </Card>
 
-        <Card className="border border-border shadow-sm">
+        <Card className="card-hover-lift border border-border shadow-sm">
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
@@ -298,7 +298,7 @@ export default function Finance() {
           </CardContent>
         </Card>
 
-        <Card className="border border-border shadow-sm">
+        <Card className="card-hover-lift border border-border shadow-sm">
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
@@ -367,7 +367,7 @@ export default function Finance() {
                 {filteredInvoices.slice(0, 20).map((inv) => {
                   const status = getStatusProps(inv.status);
                   return (
-                    <TableRow key={inv.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <TableRow key={inv.id} className="border-b border-border/40 hover:bg-primary/[0.025] transition-colors duration-100">
                       <TableCell className="py-2.5 px-4 text-[12px] font-mono text-muted-foreground">{inv.invoiceNumber}</TableCell>
                       <TableCell className="py-2.5 px-4 text-[13px] font-medium">
                         {getStudentName(inv.studentId).split(' ').slice(0, 2).join(' ')}

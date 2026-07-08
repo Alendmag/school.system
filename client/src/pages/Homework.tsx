@@ -129,7 +129,7 @@ export default function Homework() {
             const cls = db.classes.find(c => c.id === assignment.classId);
 
             return (
-              <Card key={assignment.id} className="border border-border shadow-sm hover:border-primary/20 hover:shadow-md transition-all duration-200">
+              <Card key={assignment.id} className="card-hover-lift border border-border shadow-sm">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">

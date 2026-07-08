@@ -130,7 +130,7 @@ export default function Teachers() {
 
       {/* KPI Strip */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <Card className="border border-border shadow-sm">
+        <Card className="card-hover-lift border border-border shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/30 shrink-0">
               <GraduationCap size={16} className="text-purple-600 dark:text-purple-400" />
@@ -141,7 +141,7 @@ export default function Teachers() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border border-border shadow-sm">
+        <Card className="card-hover-lift border border-border shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 shrink-0">
               <Star size={16} className="text-amber-500" />
@@ -152,7 +152,7 @@ export default function Teachers() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border border-border shadow-sm">
+        <Card className="card-hover-lift border border-border shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 shrink-0">
               <BookOpen size={16} className="text-blue-600 dark:text-blue-400" />

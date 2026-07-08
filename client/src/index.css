@@ -294,7 +294,7 @@
 
   /* Page header pattern */
   .page-header {
-    @apply pb-5 border-b border-border mb-6;
+    @apply pb-4 border-b border-border mb-5;
   }
 
   /* Sidebar group label */
@@ -425,6 +425,65 @@
 /* Sticky table header shadow */
 .sticky-header-shadow {
   box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+}
+
+/* Smooth page transitions */
+.page-enter {
+  animation: pageEnter 0.18s ease-out forwards;
+}
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Table hover row — tighter blue tint */
+.erp-table tr:hover td {
+  @apply bg-primary/[0.025];
+}
+
+/* Better input focus */
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.25);
+  border-color: hsl(var(--ring) / 0.6);
+}
+
+/* Sidebar item hover — smoother */
+.sidebar-nav-item {
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+/* Premium card border on hover */
+.card-hover-lift {
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.card-hover-lift:hover {
+  box-shadow: 0 4px 16px -4px hsl(var(--primary) / 0.12);
+  border-color: hsl(var(--primary) / 0.2);
+  transform: translateY(-1px);
+}
+
+/* Subtle separator label */
+.data-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Better table empty state */
+.table-empty {
+  @apply py-16 flex flex-col items-center gap-3 text-muted-foreground;
+}
+
+/* Arabic number improvement */
+.ar-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  direction: ltr;
+  display: inline-block;
 }
 
 /* Print styles */

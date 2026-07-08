@@ -58,7 +58,7 @@ export default function Academics() {
           {db.subjects.map((subject, i) => (
             <div
               key={subject.id}
-              className="flex items-center gap-2.5 p-3 rounded-lg border border-border bg-card hover:shadow-sm hover:border-primary/20 transition-all cursor-default group"
+              className="flex items-center gap-2.5 p-3 rounded-lg border border-border bg-card hover:shadow-md hover:border-primary/25 hover:-translate-y-px transition-all duration-150 cursor-default group"
             >
               <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 text-[11px] font-bold border ${SUBJECT_COLORS[i % SUBJECT_COLORS.length]}`}>
                 {subject.name.substring(0, 2)}
@@ -97,7 +97,7 @@ export default function Academics() {
                 const fillRate = cls.capacity > 0 ? (cls.studentCount / cls.capacity) * 100 : 0;
                 const isNearCapacity = fillRate >= 90;
                 return (
-                  <tr key={cls.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                  <tr key={cls.id} className="border-b border-border/40 hover:bg-primary/[0.025] transition-colors duration-100">
                     <td className="py-2.5 px-4">
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">

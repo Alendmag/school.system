@@ -43,7 +43,7 @@ interface KpiCardProps {
 function KpiCard({ title, value, subtitle, icon: Icon, trend, trendLabel, accent, iconBg, iconColor }: KpiCardProps) {
   const isPositive = trend === undefined || trend >= 0;
   return (
-    <Card className="border border-border bg-card shadow-sm hover:shadow-md transition-shadow duration-200">
+    <Card className="card-hover-lift border border-border bg-card shadow-sm">
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
@@ -173,9 +173,11 @@ function AdminDashboard() {
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px',
+                      borderRadius: '8px',
                       fontSize: '12px',
+                      boxShadow: '0 4px 12px -2px rgb(0 0 0 / 0.12)',
                     }}
+                    cursor={{ fill: 'hsl(var(--primary) / 0.04)' }}
                     formatter={(value: number, name: string) => [
                       `${value}%`,
                       name === 'present' ? 'حاضر' : 'غائب'
@@ -221,8 +223,9 @@ function AdminDashboard() {
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px',
+                      borderRadius: '8px',
                       fontSize: '12px',
+                      boxShadow: '0 4px 12px -2px rgb(0 0 0 / 0.12)',
                     }}
                     formatter={(v: number) => [`${v.toLocaleString()} د.ل`, 'التحصيل']}
                   />
@@ -350,16 +353,16 @@ export default function Dashboard() {
           <h1 className="text-[20px] font-bold text-foreground leading-tight">
             {greetingTime()}، {currentUser?.name?.split(' ')[0]}
           </h1>
-          <p className="text-[13px] text-muted-foreground mt-1">
-            {currentUser?.role === 'admin' && 'لوحة التحكم الرئيسية — نظرة شاملة على النظام'}
+          <p className="text-[12px] text-muted-foreground mt-0.5">
+            {currentUser?.role === 'admin' && 'نظرة شاملة على النظام — البيانات محدّثة لحظياً'}
             {currentUser?.role === 'teacher' && 'بوابتك التعليمية — مهامك وحصصك اليومية'}
             {currentUser?.role === 'student' && 'بوابتك الأكاديمية — متابعة مستواك ونتائجك'}
             {currentUser?.role === 'parent' && 'بوابة المتابعة — تابع تقدم أبنائك'}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-[12px] text-muted-foreground bg-muted/60 border border-border px-3 py-1.5 rounded-md">
-          <Clock size={12} />
-          {new Date().toLocaleDateString('ar-LY', { weekday: 'long', day: 'numeric', month: 'long' })}
+        <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground bg-muted/40 border border-border/60 px-3 py-1.5 rounded-lg">
+          <Clock size={11} className="shrink-0" />
+          <span>{new Date().toLocaleDateString('ar-LY', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
         </div>
       </div>
 

@@ -100,7 +100,7 @@ export default function Grades() {
 
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-3">
-        <Card className="border border-border shadow-sm">
+        <Card className="card-hover-lift border border-border shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 shrink-0">
               <ClipboardList size={15} className="text-blue-600 dark:text-blue-400" />
@@ -111,7 +111,7 @@ export default function Grades() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border border-border shadow-sm">
+        <Card className="card-hover-lift border border-border shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 shrink-0">
               <TrendingUp size={15} className="text-emerald-600 dark:text-emerald-400" />
@@ -122,7 +122,7 @@ export default function Grades() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border border-border shadow-sm">
+        <Card className="card-hover-lift border border-border shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 shrink-0">
               <Award size={15} className="text-amber-600 dark:text-amber-400" />

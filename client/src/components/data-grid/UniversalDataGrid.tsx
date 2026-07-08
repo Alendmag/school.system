@@ -269,7 +269,7 @@ export function UniversalDataGrid<TData, TValue>({
       </div>
 
       {/* Table Container */}
-      <div className="rounded-md border border-border bg-card overflow-hidden shadow-sm">
+      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -323,10 +323,10 @@ export function UniversalDataGrid<TData, TValue>({
                     key={row.id}
                     data-state={row.getIsSelected() ? "selected" : undefined}
                     className={cn(
-                      "border-b border-border/50 transition-colors",
+                      "border-b border-border/40 transition-colors duration-100",
                       row.getIsSelected()
-                        ? "bg-primary/5 hover:bg-primary/8"
-                        : "hover:bg-muted/40",
+                        ? "bg-primary/[0.05] hover:bg-primary/[0.07]"
+                        : "hover:bg-primary/[0.025]",
                       onRowDoubleClick && "cursor-pointer"
                     )}
                     onDoubleClick={() => onRowDoubleClick?.(row.original)}
@@ -340,18 +340,22 @@ export function UniversalDataGrid<TData, TValue>({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={tableColumns.length} className="h-32 text-center">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <Search size={20} className="opacity-30" />
-                      <p className="text-[13px]">لا توجد نتائج مطابقة</p>
-                      {globalFilter && (
-                        <button
-                          onClick={() => setGlobalFilter('')}
-                          className="text-[12px] text-primary hover:underline"
-                        >
-                          مسح البحث
-                        </button>
-                      )}
+                  <TableCell colSpan={tableColumns.length} className="h-36 text-center">
+                    <div className="flex flex-col items-center gap-2.5 text-muted-foreground py-4">
+                      <div className="w-10 h-10 rounded-full bg-muted/60 flex items-center justify-center">
+                        <Search size={16} className="opacity-40" />
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-medium">لا توجد نتائج مطابقة</p>
+                        {globalFilter && (
+                          <button
+                            onClick={() => setGlobalFilter('')}
+                            className="text-[12px] text-primary hover:underline mt-1 block mx-auto"
+                          >
+                            مسح البحث وعرض الكل
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                 </TableRow>

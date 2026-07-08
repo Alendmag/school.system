@@ -70,7 +70,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+      <div className="flex-1 overflow-y-auto py-2 px-2">
         {menuGroups.map((group) => {
           const visibleItems = group.items.filter(item =>
             userRole && item.roles.includes(userRole)
@@ -78,31 +78,32 @@ export function Sidebar() {
           if (visibleItems.length === 0) return null;
 
           return (
-            <div key={group.label} className="mb-3">
+            <div key={group.label} className="mb-1">
               <p className="sidebar-group-label">{group.label}</p>
-              <div className="space-y-0.5">
+              <div className="space-y-px">
                 {visibleItems.map((item) => {
                   const isActive = location === item.path;
                   return (
                     <Link key={item.path} href={item.path}>
                       <div className={cn(
-                        "relative flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium transition-all duration-150 cursor-pointer group",
+                        "sidebar-nav-item relative flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[12.5px] font-medium cursor-pointer group",
                         isActive
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                          : "text-sidebar-foreground/65 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground/90"
                       )}>
                         {isActive && (
-                          <span className="absolute right-0 top-1 bottom-1 w-0.5 bg-sidebar-primary rounded-l-full" />
+                          <span className="absolute right-0 top-[5px] bottom-[5px] w-[3px] bg-sidebar-primary rounded-l-full" />
                         )}
                         <item.icon
-                          size={15}
+                          size={14}
                           className={cn(
-                            "shrink-0 transition-colors",
-                            isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80"
+                            "shrink-0 transition-colors duration-100",
+                            isActive
+                              ? "text-sidebar-primary"
+                              : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70"
                           )}
                         />
-                        <span className="truncate">{item.title}</span>
-                        {isActive && <ChevronRight size={12} className="mr-auto text-sidebar-primary opacity-60" />}
+                        <span className="truncate leading-snug">{item.title}</span>
                       </div>
                     </Link>
                   );
@@ -114,25 +115,28 @@ export function Sidebar() {
       </div>
 
       {/* User Footer */}
-      <div className="p-3 border-t border-sidebar-border shrink-0">
-        <div className="flex items-center gap-2.5 px-2 py-2 rounded-md">
-          <div className="w-7 h-7 rounded-full bg-sidebar-primary/20 flex items-center justify-center shrink-0">
-            <span className="text-[11px] font-bold text-sidebar-primary">
-              {currentUser?.name?.substring(0, 2) || 'US'}
+      <div className="px-2 pb-3 pt-2 border-t border-sidebar-border shrink-0">
+        <div className="flex items-center gap-2.5 px-2 py-2 rounded-md hover:bg-sidebar-accent/40 transition-colors cursor-default">
+          <div className="w-7 h-7 rounded-full bg-sidebar-primary/25 flex items-center justify-center shrink-0 ring-1 ring-sidebar-primary/20">
+            <span className="text-[10px] font-bold text-sidebar-primary">
+              {currentUser?.name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'US'}
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-semibold text-sidebar-accent-foreground truncate leading-tight">
-              {currentUser?.name}
+            <p className="text-[11.5px] font-semibold text-sidebar-accent-foreground truncate leading-tight">
+              {currentUser?.name?.split(' ').slice(0, 2).join(' ')}
             </p>
-            <p className="text-[10px] text-sidebar-foreground/50 leading-tight">
+            <p className="text-[10px] text-sidebar-foreground/45 leading-tight mt-0.5">
               {currentUser?.role === 'admin' ? 'مدير النظام' :
                currentUser?.role === 'teacher' ? 'معلم' :
                currentUser?.role === 'student' ? 'طالب' : 'ولي أمر'}
             </p>
           </div>
-          <button className="p-1 rounded hover:bg-sidebar-accent/60 transition-colors group">
-            <LogOut size={13} className="text-sidebar-foreground/40 group-hover:text-red-400 transition-colors" />
+          <button
+            className="p-1.5 rounded-md hover:bg-red-500/10 transition-colors group"
+            title="تسجيل الخروج"
+          >
+            <LogOut size={13} className="text-sidebar-foreground/30 group-hover:text-red-400 transition-colors" />
           </button>
         </div>
       </div>

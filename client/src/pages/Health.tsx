@@ -57,7 +57,7 @@ export default function Health() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="border border-border shadow-sm">
+        <Card className="card-hover-lift border border-border shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 shrink-0">
               <Activity size={15} className="text-blue-600 dark:text-blue-400" />
@@ -68,7 +68,7 @@ export default function Health() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border border-border shadow-sm">
+        <Card className="card-hover-lift border border-border shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-red-50 dark:bg-red-950/30 shrink-0">
               <HeartPulse size={15} className="text-red-500 dark:text-red-400" />
@@ -79,7 +79,7 @@ export default function Health() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border border-border shadow-sm">
+        <Card className="card-hover-lift border border-border shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 shrink-0">
               <AlertTriangle size={15} className="text-amber-600 dark:text-amber-400" />
@@ -90,7 +90,7 @@ export default function Health() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border border-border shadow-sm">
+        <Card className="card-hover-lift border border-border shadow-sm">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 shrink-0">
               <User size={15} className="text-emerald-600 dark:text-emerald-400" />
@@ -149,7 +149,7 @@ export default function Health() {
             </thead>
             <tbody>
               {(search ? filtered : mockVisits).map(visit => (
-                <tr key={visit.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                <tr key={visit.id} className="border-b border-border/40 hover:bg-primary/[0.025] transition-colors duration-100">
                   <td className="py-2.5 px-4">
                     <span className="text-[13px] font-medium">{visit.studentName}</span>
                   </td>

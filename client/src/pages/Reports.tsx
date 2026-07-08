@@ -27,14 +27,15 @@ const attendanceTrendData = [
 const TooltipStyle = {
   backgroundColor: 'hsl(var(--card))',
   border: '1px solid hsl(var(--border))',
-  borderRadius: '6px',
+  borderRadius: '8px',
   fontSize: '12px',
   color: 'hsl(var(--foreground))',
+  boxShadow: '0 4px 12px -2px rgb(0 0 0 / 0.12)',
 };
 
 function StatBlock({ label, value, sub, icon: Icon, color }: any) {
   return (
-    <Card className="border border-border shadow-sm">
+    <Card className="card-hover-lift border border-border shadow-sm">
       <CardContent className="p-4 flex items-center gap-3">
         <div className={`p-2 rounded-lg ${color} shrink-0`}>
           <Icon size={15} />
