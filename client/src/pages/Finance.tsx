@@ -3,53 +3,58 @@ import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  CreditCard, 
-  Download, 
-  TrendingUp, 
-  TrendingDown,
-  DollarSign,
-  FileText,
-  AlertCircle,
-  CheckCircle2,
-  Search,
-  Filter,
-  Plus
-} from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { CreditCard, TrendingUp, DollarSign, CircleAlert as AlertCircle, CircleCheck as CheckCircle2, FileText, Plus, Search, ListFilter as Filter, Download, MoveHorizontal as MoreHorizontal } from "lucide-react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead,
+  TableHeader, TableRow
 } from "@/components/ui/table";
-import { 
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
+import {
+  Sheet, SheetContent, SheetFooter,
+  SheetHeader, SheetTitle, SheetTrigger
 } from "@/components/ui/sheet";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem,
+  SelectTrigger, SelectValue
 } from "@/components/ui/select";
+import {
+  DropdownMenu, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import { useFormCache } from "@/hooks/useFormCache";
 import { useKeyPress } from "@/hooks/useKeyPress";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { cn } from "@/lib/utils";
+
+const getTypeName = (type: string) => {
+  switch (type) {
+    case 'tuition': return 'قسط دراسي';
+    case 'books': return 'رسوم كتب';
+    case 'transport': return 'رسوم نقل';
+    case 'activities': return 'أنشطة مدرسية';
+    default: return 'أخرى';
+  }
+};
+
+const getStatusProps = (status: string) => {
+  switch (status) {
+    case 'paid':
+      return { label: 'مدفوع', className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800' };
+    case 'pending':
+      return { label: 'معلق', className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800' };
+    case 'overdue':
+      return { label: 'متأخر', className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800' };
+    default:
+      return { label: status, className: 'bg-muted text-muted-foreground border-border' };
+  }
+};
 
 export default function Finance() {
   const { db, setDb, services } = useApp();
-  const [isIssueInvoiceOpen, setIsIssueInvoiceOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [validationError, setValidationError] = useState("");
-  
+  const [search, setSearch] = useState("");
+
   const [formData, setFormData, clearFormData] = useFormCache("finance-invoice-form", {
     studentId: "",
     title: "قسط دراسي",
@@ -57,50 +62,25 @@ export default function Finance() {
     amount: ""
   });
 
-  // Global listener for Add Invoice
   useEffect(() => {
-    const handleOpen = () => setIsIssueInvoiceOpen(true);
-    window.addEventListener('open-issue-invoice', handleOpen);
-    return () => window.removeEventListener('open-issue-invoice', handleOpen);
+    const handler = () => setIsOpen(true);
+    window.addEventListener('open-issue-invoice', handler);
+    return () => window.removeEventListener('open-issue-invoice', handler);
   }, []);
 
   useKeyPress("ctrl+s", (e) => {
-    if (isIssueInvoiceOpen) {
-      e.preventDefault();
-      handleIssueInvoice(false);
-    }
+    if (isOpen) { e.preventDefault(); handleSave(false); }
   });
-  
   useKeyPress("shift+enter", (e) => {
-      if (isIssueInvoiceOpen) {
-          e.preventDefault();
-          handleIssueInvoice(true);
-      }
-  })
-
-  useKeyPress("esc", (e) => {
-    if (isIssueInvoiceOpen && (formData.studentId || formData.amount)) {
-      e.preventDefault();
-      if (window.confirm("لديك بيانات غير محفوظة. هل أنت متأكد من الإغلاق؟")) {
-        setIsIssueInvoiceOpen(false);
-        setValidationError("");
-      }
-    }
+    if (isOpen) { e.preventDefault(); handleSave(true); }
   });
 
-  const handleIssueInvoice = (keepOpen = false) => {
-    if (!formData.studentId) {
-        setValidationError("يجب اختيار الطالب");
-        return;
-    }
-    if (!formData.amount || isNaN(parseInt(formData.amount))) {
-        setValidationError("يجب إدخال مبلغ صحيح");
-        return;
-    }
-    
+  const handleSave = (keepOpen = false) => {
+    if (!formData.studentId) { setValidationError("يجب اختيار الطالب"); return; }
+    if (!formData.amount || isNaN(parseInt(formData.amount))) { setValidationError("يجب إدخال مبلغ صحيح"); return; }
     setValidationError("");
 
-    const newTrx = {
+    const newInvoice = {
       id: `inv-${Date.now()}`,
       invoiceNumber: `INV-${9826 + db.invoices.length}`,
       studentId: formData.studentId,
@@ -112,268 +92,327 @@ export default function Finance() {
       status: "pending" as const
     };
 
-    setDb({
-      ...db,
-      invoices: [newTrx, ...db.invoices],
+    setDb(prev => ({
+      ...prev,
+      invoices: [newInvoice, ...prev.invoices],
       notifications: [
         { id: `n-${Date.now()}`, title: 'فاتورة جديدة', message: `تم إصدار ${formData.title} بقيمة ${formData.amount} د.ل`, time: 'الآن', type: 'finance', read: false, userId: formData.studentId },
-        ...db.notifications
+        ...prev.notifications
       ]
-    });
-    
+    }));
+
     if (keepOpen) {
-        // Keep the sheet open, but clear specific fields to add another
-        setFormData({
-            ...formData,
-            title: "قسط دراسي",
-            type: "tuition",
-            amount: ""
-            // We consciously keep the studentId if they are billing the same student multiple things, 
-            // or they can change it easily since it's a combobox.
-        });
+      setFormData({ ...formData, title: "قسط دراسي", type: "tuition", amount: "" });
     } else {
-        setIsIssueInvoiceOpen(false);
-        clearFormData();
+      setIsOpen(false);
+      clearFormData();
     }
   };
 
-  const getStudentName = (id: string) => {
-    return db.students.find(s => s.id === id)?.name || "طالب غير معروف";
-  };
-  
-  const getTypeName = (type: string) => {
-      switch(type) {
-          case 'tuition': return 'قسط دراسي';
-          case 'books': return 'رسوم كتب';
-          case 'transport': return 'رسوم نقل';
-          case 'activities': return 'أنشطة مدرسية';
-          default: return 'أخرى';
+  const handleClose = () => {
+    if (formData.studentId || formData.amount) {
+      if (window.confirm("لديك بيانات غير محفوظة. هل أنت متأكد من الإغلاق؟")) {
+        setIsOpen(false);
+        setValidationError("");
       }
+    } else {
+      setIsOpen(false);
+    }
   };
 
   const stats = services.getOverallFinancialStats();
-  const pendingInvoices = db.invoices.filter(i => i.status !== 'paid').length;
+  const pendingCount = db.invoices.filter(i => i.status !== 'paid').length;
+  const collectionRate = stats.totalInvoiced > 0
+    ? Math.round((stats.totalPaid / stats.totalInvoiced) * 100)
+    : 0;
+
+  const filteredInvoices = search
+    ? db.invoices.filter(inv => {
+      const name = db.students.find(s => s.id === inv.studentId)?.name || '';
+      return name.includes(search) || inv.invoiceNumber?.includes(search) || inv.title.includes(search);
+    })
+    : db.invoices;
+
+  const getStudentName = (id: string) =>
+    db.students.find(s => s.id === id)?.name || '—';
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-start justify-between page-header">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">المالية والرسوم</h1>
-          <p className="text-muted-foreground">
-            متابعة الأقساط، إصدار الفواتير، والتقارير المالية.
+          <h1 className="text-[18px] font-bold text-foreground">الرسوم والمصروفات</h1>
+          <p className="text-[12px] text-muted-foreground mt-0.5">
+            متابعة الأقساط وإصدار الفواتير والتقارير المالية
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <FileText size={16} />
-            تقرير مالي
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-[12px]">
+            <FileText size={13} /> تقرير مالي
           </Button>
-          <Sheet open={isIssueInvoiceOpen} onOpenChange={(open) => {
-              if(!open && (formData.studentId || formData.amount)) {
-                   if (window.confirm("لديك بيانات غير محفوظة. هل أنت متأكد من الإغلاق؟")) {
-                       setIsIssueInvoiceOpen(false);
-                       setValidationError("");
-                   }
-              } else {
-                  setIsIssueInvoiceOpen(open);
-                  setValidationError("");
-              }
-          }}>
+          <Sheet open={isOpen} onOpenChange={(open) => !open ? handleClose() : setIsOpen(true)}>
             <SheetTrigger asChild>
-              <Button className="gap-2">
-                <CreditCard size={16} />
-                إصدار فاتورة
+              <Button size="sm" className="h-8 gap-1.5 text-[12px]">
+                <Plus size={13} /> إصدار فاتورة
               </Button>
             </SheetTrigger>
-            <SheetContent className="sm:max-w-[425px] font-arabic overflow-y-auto" dir="rtl" side="right">
-              <SheetHeader>
-                <SheetTitle>إصدار فاتورة جديدة</SheetTitle>
-                <SheetDescription>
-                  قم بإدخال بيانات الطالب وقيمة الفاتورة لإضافتها للنظام. سيتم حفظ البيانات مؤقتاً.
-                </SheetDescription>
+            <SheetContent className="w-[400px] sm:max-w-[400px]" dir="rtl" side="right">
+              <SheetHeader className="pb-4 border-b border-border">
+                <SheetTitle className="text-[15px] flex items-center gap-2">
+                  <CreditCard size={16} className="text-primary" />
+                  إصدار فاتورة جديدة
+                </SheetTitle>
               </SheetHeader>
-              
+
               {validationError && (
-                  <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md mt-4 flex items-center gap-2">
-                      <AlertCircle size={16} />
-                      {validationError}
-                  </div>
+                <div className="bg-destructive/10 text-destructive text-[12px] p-3 rounded-md mt-4 flex items-center gap-2 border border-destructive/20">
+                  <AlertCircle size={14} />
+                  {validationError}
+                </div>
               )}
 
-              <div className="grid gap-6 py-6">
-                <div className="grid items-center gap-2">
-                  <label className="text-sm font-medium">الطالب <span className="text-destructive">*</span></label>
-                  <SearchableSelect 
-                    options={db.students.map(s => ({ label: `${s.name} - ${s.studentId}`, value: s.id }))}
+              <div className="grid gap-4 py-5">
+                <div className="space-y-1.5">
+                  <label className="text-[12px] font-semibold text-foreground">
+                    الطالب <span className="text-destructive">*</span>
+                  </label>
+                  <SearchableSelect
+                    options={db.students.map(s => ({ label: `${s.name} — ${s.studentId}`, value: s.id }))}
                     value={formData.studentId}
-                    onChange={(val) => setFormData({...formData, studentId: val})}
+                    onChange={(val) => { setFormData({ ...formData, studentId: val }); setValidationError(""); }}
                     placeholder="اختر الطالب..."
-                    searchPlaceholder="ابحث باسم الطالب أو رقمه..."
+                    searchPlaceholder="ابحث باسم الطالب..."
                     autoFocus
                   />
                 </div>
-                <div className="grid items-center gap-2">
-                  <label htmlFor="title" className="text-sm font-medium">الوصف <span className="text-destructive">*</span></label>
-                  <Input 
-                    id="title" 
-                    placeholder="مثال: القسط الدراسي الثاني" 
+
+                <div className="space-y-1.5">
+                  <label htmlFor="inv-title" className="text-[12px] font-semibold text-foreground">
+                    الوصف <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    id="inv-title"
+                    className="h-9 text-[13px]"
+                    placeholder="مثال: القسط الدراسي الثاني"
                     value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   />
                 </div>
-                <div className="grid items-center gap-2">
-                  <label className="text-sm font-medium">نوع الرسوم</label>
-                  <Select value={formData.type} onValueChange={(val: any) => setFormData({...formData, type: val})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر نوع الرسوم" />
+
+                <div className="space-y-1.5">
+                  <label className="text-[12px] font-semibold text-foreground">نوع الرسوم</label>
+                  <Select
+                    value={formData.type}
+                    onValueChange={(val: any) => setFormData({ ...formData, type: val })}
+                  >
+                    <SelectTrigger className="h-9 text-[13px]">
+                      <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="tuition">قسط دراسي</SelectItem>
-                      <SelectItem value="books">رسوم كتب</SelectItem>
-                      <SelectItem value="transport">رسوم نقل</SelectItem>
-                      <SelectItem value="activities">أنشطة مدرسية</SelectItem>
+                    <SelectContent dir="rtl">
+                      <SelectItem value="tuition" className="text-[13px]">قسط دراسي</SelectItem>
+                      <SelectItem value="books" className="text-[13px]">رسوم كتب</SelectItem>
+                      <SelectItem value="transport" className="text-[13px]">رسوم نقل</SelectItem>
+                      <SelectItem value="activities" className="text-[13px]">أنشطة مدرسية</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid items-center gap-2">
-                  <label htmlFor="amount" className="text-sm font-medium">المبلغ (د.ل) <span className="text-destructive">*</span></label>
-                  <Input 
-                    id="amount" 
-                    type="number"
-                    placeholder="0"
-                    value={formData.amount}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                  />
+
+                <div className="space-y-1.5">
+                  <label htmlFor="inv-amount" className="text-[12px] font-semibold text-foreground">
+                    المبلغ (د.ل) <span className="text-destructive">*</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      id="inv-amount"
+                      type="number"
+                      className="h-9 text-[13px] pl-12"
+                      placeholder="0.00"
+                      value={formData.amount}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => { setFormData({ ...formData, amount: e.target.value }); setValidationError(""); }}
+                    />
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">د.ل</span>
+                  </div>
                 </div>
               </div>
-              <SheetFooter className="mt-6 flex-col sm:flex-col gap-4">
-                <div className="flex w-full gap-2">
-                    <Button onClick={() => handleIssueInvoice(false)} className="flex-1">حفظ (Ctrl+S)</Button>
-                    <Button onClick={() => handleIssueInvoice(true)} variant="secondary" className="flex-1">حفظ وإضافة آخر (Shift+Enter)</Button>
+
+              <SheetFooter className="flex flex-col gap-2 pt-4 border-t border-border">
+                <div className="flex gap-2 w-full">
+                  <Button onClick={() => handleSave(false)} className="flex-1 h-9 text-[13px]">
+                    حفظ <kbd className="mr-1 text-[10px] opacity-60">Ctrl+S</kbd>
+                  </Button>
+                  <Button onClick={() => handleSave(true)} variant="outline" className="flex-1 h-9 text-[13px]">
+                    حفظ وإضافة آخر
+                  </Button>
                 </div>
+                <Button variant="ghost" onClick={handleClose} className="w-full h-8 text-[12px] text-muted-foreground">
+                  إلغاء
+                </Button>
               </SheetFooter>
             </SheetContent>
           </Sheet>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/20 dark:to-emerald-900/10 border-emerald-200 dark:border-emerald-800">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="border border-border shadow-sm">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-emerald-800 dark:text-emerald-400">إجمالي التحصيلات</p>
-                <h3 className="text-3xl font-bold text-emerald-900 dark:text-emerald-50 mt-2">{stats.totalPaid.toLocaleString()} د.ل</h3>
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">إجمالي التحصيلات</p>
+                <p className="text-[22px] font-bold text-emerald-600 dark:text-emerald-400 tabular-num mt-1.5">
+                  {stats.totalPaid.toLocaleString()}
+                  <span className="text-[13px] font-normal text-muted-foreground mr-1">د.ل</span>
+                </p>
               </div>
-              <div className="p-2 bg-emerald-200/50 dark:bg-emerald-800/50 rounded-lg text-emerald-700 dark:text-emerald-300">
-                <TrendingUp size={24} />
+              <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 shrink-0">
+                <TrendingUp size={16} className="text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
-            <div className="mt-4 flex items-center text-sm text-emerald-700 dark:text-emerald-400">
-              <CheckCircle2 size={14} className="mr-1" />
-              <span>تم تحصيل {Math.round((stats.totalPaid / (stats.totalInvoiced || 1)) * 100)}% من الفواتير</span>
+            <div className="mt-3 pt-3 border-t border-border flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 size={11} />
+              <span>نسبة التحصيل: {collectionRate}%</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/20 dark:to-orange-900/10 border-orange-200 dark:border-orange-800">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
+        <Card className="border border-border shadow-sm">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-orange-800 dark:text-orange-400">مستحقات معلقة</p>
-                <h3 className="text-3xl font-bold text-orange-900 dark:text-orange-50 mt-2">{stats.outstanding.toLocaleString()} د.ل</h3>
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">مستحقات معلقة</p>
+                <p className="text-[22px] font-bold text-amber-600 dark:text-amber-400 tabular-num mt-1.5">
+                  {stats.outstanding.toLocaleString()}
+                  <span className="text-[13px] font-normal text-muted-foreground mr-1">د.ل</span>
+                </p>
               </div>
-              <div className="p-2 bg-orange-200/50 dark:bg-orange-800/50 rounded-lg text-orange-700 dark:text-orange-300">
-                <DollarSign size={24} />
+              <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 shrink-0">
+                <DollarSign size={16} className="text-amber-600 dark:text-amber-400" />
               </div>
             </div>
-            <div className="mt-4 flex items-center text-sm text-orange-700 dark:text-orange-400">
-              <AlertCircle size={14} className="mr-1" />
-              <span>{pendingInvoices} فواتير في الانتظار</span>
+            <div className="mt-3 pt-3 border-t border-border flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+              <AlertCircle size={11} />
+              <span>{pendingCount} فاتورة في الانتظار</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
+        <Card className="border border-border shadow-sm">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">الإجمالي المفوتر</p>
-                <h3 className="text-3xl font-bold mt-2">{stats.totalInvoiced.toLocaleString()} د.ل</h3>
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">إجمالي المفوتر</p>
+                <p className="text-[22px] font-bold tabular-num mt-1.5">
+                  {stats.totalInvoiced.toLocaleString()}
+                  <span className="text-[13px] font-normal text-muted-foreground mr-1">د.ل</span>
+                </p>
               </div>
-              <div className="p-2 bg-muted rounded-lg text-muted-foreground">
-                <CreditCard size={24} />
+              <div className="p-2 rounded-lg bg-muted shrink-0">
+                <CreditCard size={16} className="text-muted-foreground" />
               </div>
             </div>
-            <div className="mt-4 flex items-center text-sm text-muted-foreground">
-              <span>قيمة الفواتير الصادرة</span>
+            <div className="mt-3 pt-3 border-t border-border">
+              <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
+                <span>نسبة التحصيل</span>
+                <span className="font-semibold text-foreground">{collectionRate}%</span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: `${collectionRate}%` }} />
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>سجل الفواتير والمعاملات</CardTitle>
-          <div className="flex gap-2">
-            <div className="relative w-64">
-              <Search className="absolute right-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="بحث برقم الفاتورة أو اسم الطالب" className="pr-8 h-9" />
+      {/* Invoices Table */}
+      <Card className="border border-border shadow-sm">
+        <CardHeader className="py-3 px-5 border-b border-border">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-[14px] font-semibold">سجل الفواتير</CardTitle>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="بحث..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pr-8 h-8 text-[12px] w-52 bg-muted/50"
+                />
+              </div>
+              <Button variant="outline" size="icon" className="h-8 w-8" disabled>
+                <Filter size={13} />
+              </Button>
+              <Button variant="outline" size="icon" className="h-8 w-8">
+                <Download size={13} />
+              </Button>
             </div>
-            <Button variant="outline" size="icon" className="h-9 w-9">
-              <Filter size={16} />
-            </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-right">رقم الفاتورة</TableHead>
-                <TableHead className="text-right">الطالب</TableHead>
-                <TableHead className="text-right">الوصف</TableHead>
-                <TableHead className="text-right">المبلغ</TableHead>
-                <TableHead className="text-right">تاريخ الاستحقاق</TableHead>
-                <TableHead className="text-right">الحالة</TableHead>
-                <TableHead className="text-left">الإجراءات</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {db.invoices.map((trx) => (
-                <TableRow key={trx.id}>
-                  <TableCell className="font-mono text-sm">{trx.invoiceNumber}</TableCell>
-                  <TableCell className="font-medium">{getStudentName(trx.studentId)}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span>{trx.title}</span>
-                      <span className="text-xs text-muted-foreground">{getTypeName(trx.type)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{trx.amount} د.ل</TableCell>
-                  <TableCell>{trx.dueDate}</TableCell>
-                  <TableCell>
-                    <Badge variant={
-                      trx.status === 'paid' ? 'default' : 
-                      trx.status === 'pending' ? 'secondary' : 'destructive'
-                    } className={
-                      trx.status === 'paid' ? 'bg-emerald-500 hover:bg-emerald-600' : 
-                      trx.status === 'pending' ? 'bg-amber-500 hover:bg-amber-600' : ''
-                    }>
-                      {trx.status === 'paid' ? 'مدفوع' : 
-                       trx.status === 'pending' ? 'معلق' : 'متأخر'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-left">
-                    <Button variant="ghost" size="sm" className="h-8 gap-1">
-                      <Download size={14} />
-                      PDF
-                    </Button>
-                  </TableCell>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-border hover:bg-transparent">
+                  <TableHead className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wide py-2.5 px-4 bg-muted/40">رقم الفاتورة</TableHead>
+                  <TableHead className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wide py-2.5 px-4 bg-muted/40">الطالب</TableHead>
+                  <TableHead className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wide py-2.5 px-4 bg-muted/40">الوصف</TableHead>
+                  <TableHead className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wide py-2.5 px-4 bg-muted/40">المبلغ</TableHead>
+                  <TableHead className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wide py-2.5 px-4 bg-muted/40">الاستحقاق</TableHead>
+                  <TableHead className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wide py-2.5 px-4 bg-muted/40">الحالة</TableHead>
+                  <TableHead className="py-2.5 px-4 bg-muted/40 w-10" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredInvoices.slice(0, 20).map((inv) => {
+                  const status = getStatusProps(inv.status);
+                  return (
+                    <TableRow key={inv.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                      <TableCell className="py-2.5 px-4 text-[12px] font-mono text-muted-foreground">{inv.invoiceNumber}</TableCell>
+                      <TableCell className="py-2.5 px-4 text-[13px] font-medium">
+                        {getStudentName(inv.studentId).split(' ').slice(0, 2).join(' ')}
+                      </TableCell>
+                      <TableCell className="py-2.5 px-4">
+                        <p className="text-[13px]">{inv.title}</p>
+                        <p className="text-[11px] text-muted-foreground">{getTypeName(inv.type)}</p>
+                      </TableCell>
+                      <TableCell className="py-2.5 px-4 text-[13px] font-semibold tabular-num">
+                        {inv.amount.toLocaleString()}
+                        <span className="text-[11px] font-normal text-muted-foreground mr-0.5">د.ل</span>
+                      </TableCell>
+                      <TableCell className="py-2.5 px-4 text-[12px] text-muted-foreground">{inv.dueDate}</TableCell>
+                      <TableCell className="py-2.5 px-4">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${status.className}`}>
+                          {status.label}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-2.5 px-4">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-7 w-7 p-0">
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-36" dir="rtl">
+                            <DropdownMenuItem className="text-[13px]">عرض الفاتورة</DropdownMenuItem>
+                            <DropdownMenuItem className="text-[13px]">تسجيل دفع</DropdownMenuItem>
+                            <DropdownMenuItem className="text-[13px]">تصدير PDF</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          {filteredInvoices.length > 20 && (
+            <div className="px-4 py-3 border-t border-border text-center">
+              <p className="text-[12px] text-muted-foreground">
+                عرض 20 من {filteredInvoices.length} — <button className="text-primary hover:underline">عرض الكل</button>
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -1,60 +1,190 @@
-import { useState } from "react";
+import { useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { UniversalDataGrid } from "@/components/data-grid/UniversalDataGrid";
+import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Users, BookOpen } from "lucide-react";
+import { UserPlus, GraduationCap, BookOpen, Star, MoveHorizontal as MoreHorizontal, Eye, CreditCard as Edit } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 export default function Teachers() {
   const { db } = useApp();
-  
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">إدارة الكادر التعليمي</h1>
-          <p className="text-muted-foreground">إدارة بيانات المعلمين، المؤهلات، والجدول الأسبوعي.</p>
-        </div>
-        <Button className="gap-2"><Plus size={16} /> إضافة معلم</Button>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card><CardContent className="p-6 flex items-center gap-4"><Users className="text-blue-500" size={24}/><div><p className="text-sm text-muted-foreground">إجمالي المعلمين</p><h3 className="text-2xl font-bold">{db.teachers.length}</h3></div></CardContent></Card>
-        <Card><CardContent className="p-6 flex items-center gap-4"><BookOpen className="text-purple-500" size={24}/><div><p className="text-sm text-muted-foreground">متوسط سنوات الخبرة</p><h3 className="text-2xl font-bold">8.5</h3></div></CardContent></Card>
-      </div>
+  const avgExperience = useMemo(() => {
+    if (!db.teachers.length) return 0;
+    return (db.teachers.reduce((sum, t) => sum + (t.experienceYears || 0), 0) / db.teachers.length).toFixed(1);
+  }, [db.teachers]);
 
-      <div className="border rounded-md bg-card">
-        <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow>
-              <TableHead className="text-right">الاسم</TableHead>
-              <TableHead className="text-right">المؤهل</TableHead>
-              <TableHead className="text-right">الخبرة</TableHead>
-              <TableHead className="text-right">المواد</TableHead>
-              <TableHead className="text-right">الحالة</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {db.teachers.slice(0, 10).map((teacher) => (
-              <TableRow key={teacher.id}>
-                <TableCell className="font-medium">{teacher.name}</TableCell>
-                <TableCell>{teacher.qualifications}</TableCell>
-                <TableCell>{teacher.experienceYears} سنوات</TableCell>
-                <TableCell>
-                  <div className="flex gap-1 flex-wrap">
-                    {teacher.subjectIds.map(sid => {
-                      const sub = db.subjects.find(s => s.id === sid);
-                      return <Badge key={sid} variant="outline">{sub?.name}</Badge>;
-                    })}
-                  </div>
-                </TableCell>
-                <TableCell><Badge className="bg-emerald-500">على رأس العمل</Badge></TableCell>
-              </TableRow>
+  const data = useMemo(() => db.teachers.map(teacher => ({
+    ...teacher,
+    subjectNames: teacher.subjectIds
+      .map(sid => db.subjects.find(s => s.id === sid)?.name)
+      .filter(Boolean) as string[],
+    classCount: db.classes.filter(c => c.teacherId === teacher.id).length,
+  })), [db.teachers, db.subjects, db.classes]);
+
+  const columns = useMemo<ColumnDef<any>[]>(() => [
+    {
+      accessorKey: 'name',
+      header: 'المعلم',
+      cell: ({ row }) => {
+        const t = row.original;
+        const initials = t.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('');
+        return (
+          <div className="flex items-center gap-2.5">
+            <Avatar className="h-7 w-7 shrink-0">
+              <AvatarFallback className="bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 text-[11px] font-bold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="font-medium text-[13px] leading-tight truncate">{t.name}</p>
+              <p className="text-[11px] text-muted-foreground font-mono">{t.id}</p>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'qualifications',
+      header: 'المؤهل',
+      cell: ({ getValue }) => (
+        <span className="text-[13px] text-muted-foreground">{getValue() as string || '—'}</span>
+      ),
+    },
+    {
+      accessorKey: 'experienceYears',
+      header: 'الخبرة',
+      cell: ({ getValue }) => {
+        const years = getValue() as number;
+        return (
+          <div className="flex items-center gap-1.5">
+            <Star size={11} className="text-amber-400 fill-amber-400" />
+            <span className="text-[13px] tabular-num">{years} سنة</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'subjectNames',
+      header: 'المواد',
+      cell: ({ getValue }) => {
+        const subjects = getValue() as string[];
+        return (
+          <div className="flex flex-wrap gap-1">
+            {subjects.slice(0, 2).map((s, i) => (
+              <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800">
+                {s}
+              </span>
             ))}
-          </TableBody>
-        </Table>
+            {subjects.length > 2 && (
+              <span className="text-[11px] text-muted-foreground">+{subjects.length - 2}</span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'classCount',
+      header: 'الفصول',
+      cell: ({ getValue }) => {
+        const count = getValue() as number;
+        return (
+          <span className="text-[13px] tabular-num">{count} فصل</span>
+        );
+      },
+    },
+    {
+      accessorKey: 'status',
+      header: 'الحالة',
+      cell: () => (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          نشط
+        </span>
+      ),
+    },
+  ], []);
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-start justify-between page-header">
+        <div>
+          <h1 className="text-[18px] font-bold text-foreground">الكادر التعليمي</h1>
+          <p className="text-[12px] text-muted-foreground mt-0.5">
+            إدارة بيانات المعلمين والمؤهلات والجداول الدراسية
+          </p>
+        </div>
+        <Button size="sm" className="h-8 gap-1.5 text-[12px]" disabled>
+          <UserPlus size={13} />
+          إضافة معلم
+        </Button>
       </div>
+
+      {/* KPI Strip */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Card className="border border-border shadow-sm">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/30 shrink-0">
+              <GraduationCap size={16} className="text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">إجمالي المعلمين</p>
+              <p className="text-[20px] font-bold tabular-num leading-tight">{db.teachers.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border border-border shadow-sm">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 shrink-0">
+              <Star size={16} className="text-amber-500" />
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">متوسط الخبرة</p>
+              <p className="text-[20px] font-bold tabular-num leading-tight">{avgExperience} <span className="text-[13px] font-normal text-muted-foreground">سنة</span></p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border border-border shadow-sm">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 shrink-0">
+              <BookOpen size={16} className="text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">المواد الدراسية</p>
+              <p className="text-[20px] font-bold tabular-num leading-tight">{db.subjects.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Grid */}
+      <UniversalDataGrid
+        columns={columns}
+        data={data}
+        globalSearchPlaceholder="ابحث باسم المعلم أو المادة..."
+        renderRowActions={(row) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-7 w-7 p-0">
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36" dir="rtl">
+              <DropdownMenuLabel className="text-[11px] text-muted-foreground">إجراءات</DropdownMenuLabel>
+              <DropdownMenuItem className="text-[13px] gap-2"><Eye size={13} /> عرض الملف</DropdownMenuItem>
+              <DropdownMenuItem className="text-[13px] gap-2" disabled><Edit size={13} /> تعديل البيانات</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      />
     </div>
   );
 }
