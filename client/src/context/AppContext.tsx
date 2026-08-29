@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Language, Theme, InstitutionType, User, Institution } from '../lib/types';
-import { api, setCurrentSchoolId } from '../lib/api';
+import { useAuth } from './AuthContext';
+import { api } from '../lib/api';
 
 export interface AppData {
   students: any[];
@@ -46,27 +47,33 @@ interface AppContextType {
   refreshInvoices: () => Promise<void>;
 }
 
-const defaultUser: User = {
-  id: 'u1',
-  name: 'د. سامي العلي',
-  email: 'admin@school.edu',
-  role: 'admin',
-  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sami'
-};
-
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const { profile } = useAuth();
   const [language, setLanguage] = useState<Language>('ar');
   const [theme, setTheme] = useState<Theme>('light');
   const [institutionType, setInstitutionType] = useState<InstitutionType>('school');
-  const [currentUser, setCurrentUser] = useState<User | null>(defaultUser);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [institution, setInstitution] = useState<Institution>({
     id: 'inst-1', name: 'مدرسة التميز النموذجية', type: 'school',
   });
   const [data, setData] = useState<AppData>(emptyData);
   const [loading, setLoading] = useState(true);
   const [schoolId, setSchoolId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (profile) {
+      setCurrentUser({
+        id: profile.userId,
+        name: profile.name,
+        email: '',
+        role: profile.role as any,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.name}`,
+      });
+      setSchoolId(profile.schoolId);
+    }
+  }, [profile]);
 
   const refreshStudents = useCallback(async () => {
     try {
@@ -125,23 +132,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!profile) return;
     let cancelled = false;
     async function init() {
       setLoading(true);
       try {
-        const result = await api.init();
-        const sid = result.school?.id;
-        if (sid) {
-          setSchoolId(sid);
-          setCurrentSchoolId(sid);
-          if (!cancelled) await refreshData();
-        }
+        await api.init();
+        if (!cancelled) await refreshData();
       } catch (e) { console.error('init:', e); }
       if (!cancelled) setLoading(false);
     }
     init();
     return () => { cancelled = true; };
-  }, [refreshData]);
+  }, [profile, refreshData]);
 
   useEffect(() => {
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';

@@ -2,6 +2,7 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { AppProvider } from "@/context/AppContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -9,6 +10,7 @@ import Dashboard from "@/pages/Dashboard";
 import Students from "@/pages/Students";
 import NotFound from "@/pages/not-found";
 import SettingsPage from "@/pages/Settings";
+import Login from "@/pages/Login";
 
 import Teachers from "@/pages/Teachers";
 import Academics from "@/pages/Academics";
@@ -25,6 +27,8 @@ import Security from "@/pages/Security";
 import Health from "@/pages/Health";
 import Maintenance from "@/pages/Maintenance";
 import Grades from "@/pages/Grades";
+
+import { Loader2 } from "lucide-react";
 
 function Router() {
   return (
@@ -54,16 +58,41 @@ function Router() {
   );
 }
 
+function AuthGate() {
+  const { session, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background" dir="rtl">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-sky-600 mx-auto" />
+          <p className="text-muted-foreground">جاري تحميل النظام...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Login />;
+  }
+
+  return (
+    <AppProvider>
+      <Router />
+      <CommandPalette />
+    </AppProvider>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppProvider>
+      <AuthProvider>
         <WouterRouter>
-          <Router />
+          <AuthGate />
         </WouterRouter>
         <Toaster />
-        <CommandPalette />
-      </AppProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

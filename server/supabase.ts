@@ -18,7 +18,8 @@ function loadEnv() {
 
 const env = loadEnv();
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL || '';
-const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 interface SupabaseResponse<T = any> {
   data: T | null;
@@ -38,9 +39,10 @@ export async function supabaseQuery<T = any>(
     headers?: Record<string, string>;
     prefer?: string;
     onConflict?: string;
+    jwt?: string;
   } = {}
 ): Promise<SupabaseResponse<T>> {
-  const { method = 'GET', filters = '', body, select, order, limit, prefer, onConflict } = options;
+  const { method = 'GET', filters = '', body, select, order, limit, prefer, onConflict, jwt } = options;
 
   let url = `${SUPABASE_URL}/rest/v1/${table}`;
   const params: string[] = [];
@@ -51,9 +53,12 @@ export async function supabaseQuery<T = any>(
   if (onConflict) params.push(`on_conflict=${encodeURIComponent(onConflict)}`);
   if (params.length > 0) url += '?' + params.join('&');
 
+  const authKey = SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY;
+  const bearerToken = jwt || authKey;
+
   const headers: Record<string, string> = {
-    'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${bearerToken}`,
     'Content-Type': 'application/json',
     ...options.headers,
   };
@@ -92,4 +97,4 @@ export function schoolFilter(schoolId: string, extra?: string): string {
   return f;
 }
 
-export { SUPABASE_URL, SUPABASE_KEY };
+export { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY };

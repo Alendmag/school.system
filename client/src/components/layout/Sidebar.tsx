@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useApp } from "@/context/AppContext";
+import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -22,6 +23,7 @@ import { UserRole } from "@/lib/types";
 
 export function Sidebar() {
   const { institution, institutionType, currentUser } = useApp();
+  const { logout } = useAuth();
   const [location] = useLocation();
 
   const menuItems = [
@@ -158,7 +160,10 @@ export function Sidebar() {
       </div>
 
       <div className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-sidebar-accent/50 transition-colors cursor-pointer text-destructive hover:text-destructive">
+        <div
+          onClick={() => logout()}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-sidebar-accent/50 transition-colors cursor-pointer text-destructive hover:text-destructive"
+        >
           <LogOut size={18} />
           <span className="text-sm font-medium">تسجيل الخروج</span>
         </div>

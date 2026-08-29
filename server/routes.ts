@@ -1,31 +1,55 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { supabaseQuery, schoolFilter } from "./supabase";
+import { authMiddleware, requireAuth, supabaseAdmin, getJwt } from "./auth";
 
-function getSchoolId(req: Request): string | null {
-  return (req.headers["x-school-id"] as string) || null;
-}
-
-function requireSchool(req: Request, res: Response): string | null {
-  const schoolId = getSchoolId(req);
-  if (!schoolId) { res.status(401).json({ message: "مطلوب تحديد المدرسة" }); return null; }
-  return schoolId;
+function authQuery(req: Request) {
+  const jwt = getJwt(req);
+  return <T = any>(table: string, options: Parameters<typeof supabaseQuery>[1] = {}) =>
+    supabaseQuery<T>(table, { ...options, jwt });
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
 
-  app.get("/api/schools", async (_req, res) => {
-    const { data, error } = await supabaseQuery("schools", { select: "*", order: "name.asc" });
-    if (error) return res.status(500).json({ message: error });
-    res.json(data || []);
-  });
+  // === PUBLIC ROUTES (no auth required) ===
 
-  app.post("/api/schools", async (req, res) => {
-    const { name, type } = req.body;
-    if (!name) return res.status(400).json({ message: "اسم المدرسة مطلوب" });
-    const { data, error } = await supabaseQuery("schools", { method: "POST", body: { name, type: type || "school" } });
-    if (error) return res.status(500).json({ message: error });
-    res.status(201).json(data?.[0] || data);
+  app.post("/api/auth/signup", async (req, res) => {
+    const { email, password, name, schoolId } = req.body;
+    if (!email || !password || !name || !schoolId) {
+      return res.status(400).json({ message: "جميع الحقول مطلوبة" });
+    }
+
+    const { data: schoolCheck } = await supabaseQuery("schools", {
+      filters: `id=eq.${schoolId}`, select: "id", limit: 1,
+    });
+    if (!schoolCheck || schoolCheck.length === 0) {
+      return res.status(400).json({ message: "المدرسة غير موجودة" });
+    }
+
+    const { data: authData, error: authErr } = await supabaseAdmin.auth.signUp({
+      email,
+      password,
+    });
+    if (authErr) {
+      const msg = authErr.message.includes("already been registered")
+        ? "البريد الإلكتروني مسجل بالفعل"
+        : authErr.message;
+      return res.status(400).json({ message: msg });
+    }
+
+    const userId = authData.user?.id;
+    const accessToken = authData.session?.access_token;
+    if (!userId) return res.status(500).json({ message: "فشل إنشاء الحساب" });
+
+    if (accessToken) {
+      await supabaseQuery("user_profiles", {
+        method: "POST",
+        body: { user_id: userId, school_id: schoolId, role: "admin", name },
+        jwt: accessToken,
+      });
+    }
+
+    res.status(201).json({ message: "تم إنشاء الحساب بنجاح" });
   });
 
   app.post("/api/init", async (_req, res) => {
@@ -112,71 +136,120 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       await supabaseQuery("grade_entries", { method: "POST", body: grades });
     }
 
-    res.json({ school, seeded: true });
+    const adminEmail = "admin@school.edu";
+    const adminPassword = "SchoolAdmin2025!";
+    const { data: authData } = await supabaseAdmin.auth.signUp({
+      email: adminEmail,
+      password: adminPassword,
+    });
+    if (authData?.user && authData.session?.access_token) {
+      await supabaseQuery("user_profiles", {
+        method: "POST",
+        body: { user_id: authData.user.id, school_id: sid, role: "admin", name: "د. سامي العلي" },
+        jwt: authData.session.access_token,
+      });
+    }
+
+    res.json({ school, seeded: true, defaultCredentials: { email: adminEmail, password: adminPassword } });
   });
+
+  app.get("/api/auth/schools", async (_req, res) => {
+    const { data, error } = await supabaseQuery("schools", { select: "id,name", order: "name.asc" });
+    if (error) return res.status(500).json({ message: error });
+    res.json(data || []);
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ message: "البريد وكلمة المرور مطلوبان" });
+    const { data, error } = await supabaseAdmin.auth.signInWithPassword({ email, password });
+    if (error) return res.status(401).json({ message: "البريد الإلكتروني أو كلمة المرور غير صحيحة" });
+    res.json({ access_token: data.session.access_token, refresh_token: data.session.refresh_token, user: data.user });
+  });
+
+  app.get("/api/auth/me", authMiddleware, async (req, res) => {
+    res.json({
+      userId: req.userId,
+      schoolId: req.schoolId,
+      role: req.userRole,
+      name: req.userName,
+    });
+  });
+
+  // === ALL ROUTES BELOW REQUIRE AUTHENTICATION ===
+  app.use("/api", authMiddleware);
 
   // === STUDENTS ===
   app.get("/api/students", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
     let filters = schoolFilter(schoolId);
     const search = req.query.search as string;
-    if (search) filters += `&or=(name.ilike.*${search}*,student_id.ilike.*${search}*)`;
-    const { data, error, count } = await supabaseQuery("students", { filters, select: "*", order: "created_at.desc", limit: parseInt(req.query.limit as string) || 100 });
+    if (search) {
+      const sanitized = search.replace(/[^a-zA-Z0-9\u0600-\u06FF\s\-]/g, '');
+      filters += `&or=(name.ilike.*${sanitized}*,student_id.ilike.*${sanitized}*)`;
+    }
+    const { data, error, count } = await q("students", { filters, select: "*", order: "created_at.desc", limit: parseInt(req.query.limit as string) || 100 });
     if (error) return res.status(500).json({ message: error });
     res.json({ data: data || [], count });
   });
 
   app.get("/api/students/:id", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
-    const { data, error } = await supabaseQuery("students", { filters: schoolFilter(schoolId)+`&id=eq.${req.params.id}`, select: "*", limit: 1 });
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data, error } = await q("students", { filters: schoolFilter(schoolId)+`&id=eq.${req.params.id}`, select: "*", limit: 1 });
     if (error) return res.status(500).json({ message: error });
     if (!data || data.length === 0) return res.status(404).json({ message: "طالب غير موجود" });
     res.json(data[0]);
   });
 
   app.post("/api/students", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
     const { name, class_id, guardian_id, date_of_birth, national_id, grade_level, blood_type, medical_conditions } = req.body;
     if (!name) return res.status(400).json({ message: "اسم الطالب مطلوب" });
     const studentId = `STD-${new Date().getFullYear()}${String(Date.now()).slice(-5)}`;
-    const { data, error } = await supabaseQuery("students", { method: "POST", body: { school_id: schoolId, student_id: studentId, name, grade_level: grade_level || "1", class_id: class_id || null, guardian_id: guardian_id || null, date_of_birth: date_of_birth || null, national_id: national_id || null, blood_type: blood_type || null, medical_conditions: medical_conditions || null, status: "active" } });
+    const { data, error } = await q("students", { method: "POST", body: { school_id: schoolId, student_id: studentId, name, grade_level: grade_level || "1", class_id: class_id || null, guardian_id: guardian_id || null, date_of_birth: date_of_birth || null, national_id: national_id || null, blood_type: blood_type || null, medical_conditions: medical_conditions || null, status: "active" } });
     if (error) return res.status(500).json({ message: error });
     res.status(201).json(data?.[0] || data);
   });
 
   app.patch("/api/students/:id", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
     const allowed = ["name","class_id","guardian_id","date_of_birth","national_id","grade_level","status","blood_type","medical_conditions"];
     const updates: Record<string,any> = {};
     for (const key of allowed) { if (req.body[key] !== undefined) updates[key] = req.body[key]; }
     if (Object.keys(updates).length === 0) return res.status(400).json({ message: "لا توجد بيانات للتحديث" });
-    const { data, error } = await supabaseQuery("students", { method: "PATCH", filters: schoolFilter(schoolId)+`&id=eq.${req.params.id}`, body: updates });
+    const { data, error } = await q("students", { method: "PATCH", filters: schoolFilter(schoolId)+`&id=eq.${req.params.id}`, body: updates });
     if (error) return res.status(500).json({ message: error });
     if (!data || data.length === 0) return res.status(404).json({ message: "طالب غير موجود أو لا ينتمي لهذه المدرسة" });
     res.json(data[0]);
   });
 
   app.delete("/api/students/:id", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
-    const { error } = await supabaseQuery("students", { method: "DELETE", filters: schoolFilter(schoolId)+`&id=eq.${req.params.id}` });
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { error } = await q("students", { method: "DELETE", filters: schoolFilter(schoolId)+`&id=eq.${req.params.id}` });
     if (error) return res.status(500).json({ message: error });
     res.json({ success: true });
   });
 
   // === STUDENT 360 ===
   app.get("/api/students/:id/360", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
     const studentId = req.params.id;
     const sf = schoolFilter(schoolId);
     const [studentRes, classesRes, guardiansRes, attendanceRes, invoicesRes, paymentsRes, gradesRes, assignmentsRes] = await Promise.all([
-      supabaseQuery("students", { filters: sf+`&id=eq.${studentId}`, select: "*", limit: 1 }),
-      supabaseQuery("classes", { filters: sf, select: "*" }),
-      supabaseQuery("guardians", { filters: sf, select: "*" }),
-      supabaseQuery("attendance_records", { filters: sf+`&student_id=eq.${studentId}`, select: "*", order: "date.desc", limit: 50 }),
-      supabaseQuery("invoices", { filters: sf+`&student_id=eq.${studentId}`, select: "*", order: "created_at.desc" }),
-      supabaseQuery("payments", { filters: sf, select: "*" }),
-      supabaseQuery("grade_entries", { filters: sf+`&student_id=eq.${studentId}`, select: "*" }),
-      supabaseQuery("assignments", { filters: sf, select: "*" }),
+      q("students", { filters: sf+`&id=eq.${studentId}`, select: "*", limit: 1 }),
+      q("classes", { filters: sf, select: "*" }),
+      q("guardians", { filters: sf, select: "*" }),
+      q("attendance_records", { filters: sf+`&student_id=eq.${studentId}`, select: "*", order: "date.desc", limit: 50 }),
+      q("invoices", { filters: sf+`&student_id=eq.${studentId}`, select: "*", order: "created_at.desc" }),
+      q("payments", { filters: sf, select: "*" }),
+      q("grade_entries", { filters: sf+`&student_id=eq.${studentId}`, select: "*" }),
+      q("assignments", { filters: sf, select: "*" }),
     ]);
     if (!studentRes.data || studentRes.data.length === 0) return res.status(404).json({ message: "طالب غير موجود" });
     const student = studentRes.data[0];
@@ -202,124 +275,139 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     });
   });
 
-  // === CLASSES (with grade-level filtering for MJ-3) ===
+  // === CLASSES ===
   app.get("/api/classes", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
     let filters = schoolFilter(schoolId);
     const level = req.query.level as string;
     if (level) filters += `&level=eq.${level}`;
-    const { data, error } = await supabaseQuery("classes", { filters, select: "*", order: "level.asc,name.asc" });
+    const { data, error } = await q("classes", { filters, select: "*", order: "level.asc,name.asc" });
     if (error) return res.status(500).json({ message: error });
     res.json(data || []);
   });
 
   app.get("/api/guardians", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
-    const { data, error } = await supabaseQuery("guardians", { filters: schoolFilter(schoolId), select: "*", order: "name.asc" });
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data, error } = await q("guardians", { filters: schoolFilter(schoolId), select: "*", order: "name.asc" });
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
   app.get("/api/subjects", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
-    const { data, error } = await supabaseQuery("subjects", { filters: schoolFilter(schoolId), select: "*", order: "name.asc" });
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data, error } = await q("subjects", { filters: schoolFilter(schoolId), select: "*", order: "name.asc" });
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
   app.get("/api/teachers", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
-    const { data, error } = await supabaseQuery("teachers", { filters: schoolFilter(schoolId), select: "*", order: "name.asc" });
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data, error } = await q("teachers", { filters: schoolFilter(schoolId), select: "*", order: "name.asc" });
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
-  // === ATTENDANCE (CF-2: upsert) ===
+  // === ATTENDANCE ===
   app.get("/api/attendance", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
     let filters = schoolFilter(schoolId);
     if (req.query.date) filters += `&date=eq.${req.query.date}`;
     if (req.query.class_id) filters += `&class_id=eq.${req.query.class_id}`;
-    const { data, error } = await supabaseQuery("attendance_records", { filters, select: "*", order: "date.desc" });
+    const { data, error } = await q("attendance_records", { filters, select: "*", order: "date.desc" });
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
   app.post("/api/attendance", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
     const records = req.body.records;
     if (!Array.isArray(records) || records.length === 0) return res.status(400).json({ message: "يجب إرسال سجلات الحضور" });
     const upsertData = records.map((r: any) => ({ school_id: schoolId, student_id: r.student_id, class_id: r.class_id, date: r.date, status: r.status || "present", notes: r.notes || null, updated_at: new Date().toISOString() }));
-    const { data, error } = await supabaseQuery("attendance_records", { method: "POST", body: upsertData, prefer: "resolution=merge-duplicates,return=representation", onConflict: "school_id,student_id,class_id,date" });
+    const { data, error } = await q("attendance_records", { method: "POST", body: upsertData, prefer: "resolution=merge-duplicates,return=representation", onConflict: "school_id,student_id,class_id,date" });
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
-  // === INVOICES (CF-1: verify student ownership) ===
+  // === INVOICES ===
   app.get("/api/invoices", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
     let filters = schoolFilter(schoolId);
     if (req.query.student_id) filters += `&student_id=eq.${req.query.student_id}`;
-    const { data, error } = await supabaseQuery("invoices", { filters, select: "*", order: "created_at.desc" });
+    const { data, error } = await q("invoices", { filters, select: "*", order: "created_at.desc" });
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
   app.post("/api/invoices", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
     const { student_id, title, type, amount } = req.body;
     if (!student_id || !amount) return res.status(400).json({ message: "بيانات الفاتورة غير مكتملة" });
-    const { data: studentCheck } = await supabaseQuery("students", { filters: schoolFilter(schoolId)+`&id=eq.${student_id}`, select: "id", limit: 1 });
+    const { data: studentCheck } = await q("students", { filters: schoolFilter(schoolId)+`&id=eq.${student_id}`, select: "id", limit: 1 });
     if (!studentCheck || studentCheck.length === 0) return res.status(403).json({ message: "الطالب لا ينتمي لهذه المدرسة" });
     const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
-    const { data, error } = await supabaseQuery("invoices", { method: "POST", body: { school_id: schoolId, invoice_number: invoiceNumber, student_id, title: title || "قسط دراسي", type: type || "tuition", amount: Number(amount), due_date: new Date(Date.now()+15*86400000).toISOString().split("T")[0], status: "pending" } });
+    const { data, error } = await q("invoices", { method: "POST", body: { school_id: schoolId, invoice_number: invoiceNumber, student_id, title: title || "قسط دراسي", type: type || "tuition", amount: Number(amount), due_date: new Date(Date.now()+15*86400000).toISOString().split("T")[0], status: "pending" } });
     if (error) return res.status(500).json({ message: error }); res.status(201).json(data?.[0] || data);
   });
 
   app.get("/api/payments", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
-    const { data, error } = await supabaseQuery("payments", { filters: schoolFilter(schoolId), select: "*", order: "created_at.desc" });
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data, error } = await q("payments", { filters: schoolFilter(schoolId), select: "*", order: "created_at.desc" });
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
   app.get("/api/grades", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
-    const { data, error } = await supabaseQuery("grade_entries", { filters: schoolFilter(schoolId), select: "*", order: "created_at.desc" });
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data, error } = await q("grade_entries", { filters: schoolFilter(schoolId), select: "*", order: "created_at.desc" });
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
   app.get("/api/assignments", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
-    const { data, error } = await supabaseQuery("assignments", { filters: schoolFilter(schoolId), select: "*", order: "created_at.desc" });
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data, error } = await q("assignments", { filters: schoolFilter(schoolId), select: "*", order: "created_at.desc" });
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
   app.get("/api/exams", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
-    const { data, error } = await supabaseQuery("exams", { filters: schoolFilter(schoolId), select: "*" });
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data, error } = await q("exams", { filters: schoolFilter(schoolId), select: "*" });
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
   app.get("/api/academic-years", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
-    const { data, error } = await supabaseQuery("academic_years", { filters: schoolFilter(schoolId), select: "*", order: "start_date.desc" });
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data, error } = await q("academic_years", { filters: schoolFilter(schoolId), select: "*", order: "start_date.desc" });
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
   app.get("/api/terms", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
-    const { data, error } = await supabaseQuery("terms", { filters: schoolFilter(schoolId), select: "*" });
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data, error } = await q("terms", { filters: schoolFilter(schoolId), select: "*" });
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
   // === REPORTS ===
   app.get("/api/reports/summary", async (req, res) => {
-    const schoolId = requireSchool(req, res); if (!schoolId) return;
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
     const sf = schoolFilter(schoolId);
     const [studentsR, teachersR, classesR, subjectsR, invoicesR, paymentsR, attendanceR, gradesR, assignmentsR] = await Promise.all([
-      supabaseQuery("students", { filters: sf, select: "id,status,grade_level", limit: 10000 }),
-      supabaseQuery("teachers", { filters: sf, select: "id", limit: 10000 }),
-      supabaseQuery("classes", { filters: sf, select: "id,level,name", limit: 10000 }),
-      supabaseQuery("subjects", { filters: sf, select: "id,name", limit: 10000 }),
-      supabaseQuery("invoices", { filters: sf, select: "id,amount,status,student_id,type", limit: 10000 }),
-      supabaseQuery("payments", { filters: sf, select: "id,amount", limit: 10000 }),
-      supabaseQuery("attendance_records", { filters: sf, select: "id,status,class_id,date", limit: 10000 }),
-      supabaseQuery("grade_entries", { filters: sf, select: "id,student_id,assignment_id,score", limit: 10000 }),
-      supabaseQuery("assignments", { filters: sf, select: "id,subject_id,total_marks", limit: 10000 }),
+      q("students", { filters: sf, select: "id,status,grade_level", limit: 10000 }),
+      q("teachers", { filters: sf, select: "id", limit: 10000 }),
+      q("classes", { filters: sf, select: "id,level,name", limit: 10000 }),
+      q("subjects", { filters: sf, select: "id,name", limit: 10000 }),
+      q("invoices", { filters: sf, select: "id,amount,status,student_id,type", limit: 10000 }),
+      q("payments", { filters: sf, select: "id,amount", limit: 10000 }),
+      q("attendance_records", { filters: sf, select: "id,status,class_id,date", limit: 10000 }),
+      q("grade_entries", { filters: sf, select: "id,student_id,assignment_id,score", limit: 10000 }),
+      q("assignments", { filters: sf, select: "id,subject_id,total_marks", limit: 10000 }),
     ]);
     const students = studentsR.data||[], teachers = teachersR.data||[], classes = classesR.data||[];
     const subjects = subjectsR.data||[], invoices = invoicesR.data||[], payments = paymentsR.data||[];

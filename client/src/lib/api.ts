@@ -1,21 +1,17 @@
-let currentSchoolId: string | null = null;
-
-export function setCurrentSchoolId(id: string) {
-  currentSchoolId = id;
-}
-
-export function getCurrentSchoolId(): string | null {
-  return currentSchoolId;
-}
+import { supabase } from './supabase';
 
 async function apiFetch<T = any>(path: string, options: RequestInit = {}): Promise<T> {
+  const { data: { session } } = await supabase.auth.getSession();
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
   };
-  if (currentSchoolId) {
-    headers['x-school-id'] = currentSchoolId;
+
+  if (session?.access_token) {
+    headers['Authorization'] = `Bearer ${session.access_token}`;
   }
+
   const res = await fetch(path, { ...options, headers });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ message: 'خطأ في الخادم' }));
@@ -26,7 +22,6 @@ async function apiFetch<T = any>(path: string, options: RequestInit = {}): Promi
 
 export const api = {
   init: () => apiFetch<{ school: any; seeded: boolean }>('/api/init', { method: 'POST' }),
-  getSchools: () => apiFetch<any[]>('/api/schools'),
   getStudents: (search?: string) =>
     apiFetch<{ data: any[]; count: number }>(`/api/students${search ? `?search=${encodeURIComponent(search)}` : ''}`),
   getStudent: (id: string) => apiFetch<any>(`/api/students/${id}`),
