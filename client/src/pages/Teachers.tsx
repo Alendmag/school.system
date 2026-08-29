@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,7 +6,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Users, BookOpen } from "lucide-react";
 
 export default function Teachers() {
-  const { db } = useApp();
+  const { data, loading } = useApp();
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  }
   
   return (
     <div className="space-y-6">
@@ -20,7 +23,7 @@ export default function Teachers() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card><CardContent className="p-6 flex items-center gap-4"><Users className="text-blue-500" size={24}/><div><p className="text-sm text-muted-foreground">إجمالي المعلمين</p><h3 className="text-2xl font-bold">{db.teachers.length}</h3></div></CardContent></Card>
+        <Card><CardContent className="p-6 flex items-center gap-4"><Users className="text-blue-500" size={24}/><div><p className="text-sm text-muted-foreground">إجمالي المعلمين</p><h3 className="text-2xl font-bold">{data.teachers.length}</h3></div></CardContent></Card>
         <Card><CardContent className="p-6 flex items-center gap-4"><BookOpen className="text-purple-500" size={24}/><div><p className="text-sm text-muted-foreground">متوسط سنوات الخبرة</p><h3 className="text-2xl font-bold">8.5</h3></div></CardContent></Card>
       </div>
 
@@ -36,7 +39,7 @@ export default function Teachers() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {db.teachers.slice(0, 10).map((teacher) => (
+            {data.teachers.slice(0, 10).map((teacher) => (
               <TableRow key={teacher.id}>
                 <TableCell className="font-medium">{teacher.name}</TableCell>
                 <TableCell>{teacher.qualifications}</TableCell>
@@ -44,7 +47,7 @@ export default function Teachers() {
                 <TableCell>
                   <div className="flex gap-1 flex-wrap">
                     {teacher.subjectIds.map(sid => {
-                      const sub = db.subjects.find(s => s.id === sid);
+                      const sub = data.subjects.find(s => s.id === sid);
                       return <Badge key={sid} variant="outline">{sub?.name}</Badge>;
                     })}
                   </div>

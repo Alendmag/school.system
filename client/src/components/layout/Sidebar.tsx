@@ -21,7 +21,7 @@ import {
 import { UserRole } from "@/lib/types";
 
 export function Sidebar() {
-  const { institution, institutionType, currentUser } = useApp();
+  const { institution, currentUser } = useApp();
   const [location] = useLocation();
 
   const menuItems = [

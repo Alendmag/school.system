@@ -5,7 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Book, Plus } from "lucide-react";
 
 export default function Library() {
-  const { db } = useApp();
+  const { loading } = useApp();
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  }
+
+  // TODO: libraryBooks not yet available in the new data model
+  const libraryBooks: any[] = [];
   
   return (
     <div className="space-y-6">
@@ -28,7 +35,7 @@ export default function Library() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {db.libraryBooks.map((book) => (
+            {libraryBooks.map((book: any) => (
               <TableRow key={book.id}>
                 <TableCell className="font-medium flex items-center gap-2"><Book size={16} className="text-muted-foreground"/> {book.title}</TableCell>
                 <TableCell>{book.author}</TableCell>

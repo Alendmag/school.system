@@ -2,12 +2,12 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "sonner";
 import { AppProvider } from "@/context/AppContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { CommandPalette } from "@/components/CommandPalette";
 import Dashboard from "@/pages/Dashboard";
 import Students from "@/pages/Students";
-import StudentsGrid from "@/pages/StudentsGrid";
 import NotFound from "@/pages/not-found";
 import SettingsPage from "@/pages/Settings";
 
@@ -32,8 +32,7 @@ function Router() {
     <MainLayout>
       <Switch>
         <Route path="/" component={Dashboard} />
-        <Route path="/students" component={StudentsGrid} />
-        <Route path="/students-old" component={Students} />
+        <Route path="/students" component={Students} />
         <Route path="/teachers" component={Teachers} />
         <Route path="/academics" component={Academics} />
         <Route path="/finance" component={Finance} />
@@ -64,6 +63,7 @@ function App() {
           <Router />
         </WouterRouter>
         <Toaster />
+        <SonnerToaster position="top-center" dir="rtl" />
         <CommandPalette />
       </AppProvider>
     </QueryClientProvider>

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,7 +7,11 @@ import { BookOpen, Plus, Users, Clock, MoreHorizontal, FileText, GraduationCap }
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function Academics() {
-  const { db, setDb } = useApp();
+  const { data, loading } = useApp();
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -30,7 +33,7 @@ export default function Academics() {
           </h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {db.subjects.map((subject) => (
+          {data.subjects.map((subject) => (
             <Card key={subject.id} className="hover:shadow-md transition-all group border-border/60">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
@@ -55,8 +58,8 @@ export default function Academics() {
           </h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {db.classes.map((cls) => {
-            const classStudents = db.students.filter(s => s.classId === cls.id).length;
+          {data.classes.map((cls) => {
+            const classStudents = data.students.filter(s => s.classId === cls.id).length;
             return (
             <div key={cls.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-card">
               <div className="flex items-center gap-4">

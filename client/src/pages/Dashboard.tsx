@@ -5,7 +5,11 @@ import {
 } from "lucide-react";
 
 export default function Dashboard() {
-  const { currentUser, db, services } = useApp();
+  const { currentUser, data, loading } = useApp();
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  }
 
   const StatCard = ({ title, value, icon: Icon, trend, color, trendText = "منذ الأسبوع الماضي" }: any) => (
     <Card className="overflow-hidden border-none shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-card to-muted/30">
@@ -29,18 +33,21 @@ export default function Dashboard() {
     </Card>
   );
 
-  const notifications = services.getNotificationsForUser(currentUser);
+  const notifications: any[] = [];
 
   // Admin Dashboard View dynamically calculated from DB
   const AdminDashboard = () => {
-    const schoolAttendance = services.getSchoolAttendanceStats();
+    const today = new Date().toISOString().split('T')[0];
+    const todayRecords = data.attendance.filter(a => a.date === today);
+    const presentCount = todayRecords.filter(a => a.status === 'present' || a.status === 'late').length;
+    const schoolAttendance = todayRecords.length > 0 ? (presentCount / todayRecords.length) * 100 : 0;
     
     return (
     <>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="إجمالي الطلاب" value={db.students.length} icon={Users} trend="+2%" color="blue" />
-        <StatCard title="الكادر التعليمي" value={db.teachers.length} icon={GraduationCap} trend="ثابت" trendText="هذا الشهر" color="purple" />
-        <StatCard title="الفصول الدراسية" value={db.classes.length} icon={School} trend="ثابت" trendText="هذا الفصل" color="amber" />
+        <StatCard title="إجمالي الطلاب" value={data.students.length} icon={Users} trend="+2%" color="blue" />
+        <StatCard title="الكادر التعليمي" value={data.teachers.length} icon={GraduationCap} trend="ثابت" trendText="هذا الشهر" color="purple" />
+        <StatCard title="الفصول الدراسية" value={data.classes.length} icon={School} trend="ثابت" trendText="هذا الفصل" color="amber" />
         <StatCard title="نسبة الحضور اليوم" value={`${schoolAttendance.toFixed(1)}%`} icon={CalendarCheck} trend="+1.5%" trendText="مقارنة بأمس" color="emerald" />
       </div>
 

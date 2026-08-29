@@ -7,11 +7,9 @@ import {
   Languages, 
   Search,
   Menu,
-  Check,
   Clock,
   CreditCard,
   MessageSquare,
-  UserCircle
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -20,13 +18,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { UserRole } from "@/lib/types";
 
 // Mock Notifications Data
 const notifications = [
@@ -68,19 +62,8 @@ export function Header() {
     theme, 
     toggleLanguage, 
     language, 
-    currentUser,
-    setCurrentUser,
-    setInstitutionType,
-    institutionType
+    currentUser
   } = useApp();
-
-  const handleRoleChange = (role: UserRole) => {
-    if (!currentUser) return;
-    setCurrentUser({
-      ...currentUser,
-      role: role
-    });
-  };
 
   const getRoleName = (role: string) => {
     switch(role) {
@@ -180,16 +163,6 @@ export function Header() {
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground flex items-center gap-2">
-              <UserCircle size={14} /> تبديل الصلاحية (للمعاينة)
-            </DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={currentUser?.role} onValueChange={(val) => handleRoleChange(val as UserRole)}>
-              <DropdownMenuRadioItem value="admin">مدير النظام (Admin)</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="teacher">معلم (Teacher)</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="student">طالب (Student)</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="parent">ولي أمر (Parent)</DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem>الملف الشخصي</DropdownMenuItem>
             <DropdownMenuItem>الإعدادات</DropdownMenuItem>

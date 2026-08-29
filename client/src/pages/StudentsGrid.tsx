@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { UniversalDataGrid } from '@/components/data-grid/UniversalDataGrid';
 import { ColumnDef } from '@tanstack/react-table';
@@ -16,17 +16,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 export default function StudentsGrid() {
-  const { db, services } = useApp();
-  
-  // Real data mapping
-  const data = useMemo(() => {
-    return db.students.map(student => ({
+  const { data, loading } = useApp();
+
+  // Real data mapping - GPA and attendance now computed server-side via Student 360 endpoint
+  const gridData = useMemo(() => {
+    return data.students.map(student => ({
       ...student,
-      className: db.classes.find(c => c.id === student.classId)?.name || 'غير محدد',
-      gpa: services.getStudentGPA(student.id),
-      attendance: services.getStudentAttendance(student.id).percentage,
+      className: data.classes.find(c => c.id === student.classId)?.name || 'غير محدد',
     }));
-  }, [db.students, db.classes]);
+  }, [data.students, data.classes]);
 
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
@@ -56,31 +54,20 @@ export default function StudentsGrid() {
         header: 'الفصل',
       },
       {
-        accessorKey: 'gpa',
+        id: 'gpa',
         header: 'المعدل التراكمي',
-        cell: ({ getValue }) => {
-          const gpa = getValue() as number;
-          return (
-            <Badge variant="outline" className={gpa >= 85 ? 'border-emerald-500 text-emerald-700 bg-emerald-50' : 'border-amber-500 text-amber-700 bg-amber-50'}>
-              {gpa.toFixed(1)}%
-            </Badge>
-          );
-        },
+        cell: () => (
+          <Badge variant="outline" className="border-muted text-muted-foreground">
+            N/A
+          </Badge>
+        ),
       },
       {
-        accessorKey: 'attendance',
+        id: 'attendance',
         header: 'الحضور',
-        cell: ({ getValue }) => {
-          const att = getValue() as number;
-          return (
-            <div className="flex items-center gap-2">
-              <div className="w-full bg-secondary rounded-full h-2 max-w-[80px]">
-                <div className={`h-2 rounded-full ${att >= 90 ? 'bg-blue-500' : 'bg-red-500'}`} style={{ width: `${att}%` }} />
-              </div>
-              <span className="text-xs text-muted-foreground">{att.toFixed(0)}%</span>
-            </div>
-          );
-        },
+        cell: () => (
+          <span className="text-xs text-muted-foreground">N/A</span>
+        ),
       },
       {
         accessorKey: 'status',
@@ -98,6 +85,10 @@ export default function StudentsGrid() {
     []
   );
 
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between gap-4">
@@ -112,7 +103,7 @@ export default function StudentsGrid() {
 
       <UniversalDataGrid
         columns={columns}
-        data={data}
+        data={gridData}
         enableRowSelection={true}
         globalSearchPlaceholder="ابحث باسم الطالب، الرقم، أو الفصل..."
         onRowDoubleClick={(row) => console.log("Double clicked:", row)}

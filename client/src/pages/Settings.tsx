@@ -9,7 +9,11 @@ import { Separator } from "@/components/ui/separator";
 import { Save, Upload, Globe, Palette, Shield, BookOpen } from "lucide-react";
 
 export default function SettingsPage() {
-  const { institution, setInstitution } = useApp();
+  const { institution, loading } = useApp();
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -39,10 +43,12 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="grid gap-2">
                 <Label htmlFor="inst-name">اسم المدرسة</Label>
+                {/* TODO: Implement institution update via API */}
                 <Input 
                   id="inst-name" 
-                  value={institution.name} 
-                  onChange={(e) => setInstitution({...institution, name: e.target.value})}
+                  value={institution?.name || ''} 
+                  readOnly
+                  className="bg-muted/50"
                   placeholder="مثال: مدرسة المناهل الدولية"
                 />
               </div>

@@ -6,7 +6,14 @@ import { Bus, Plus, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function Transport() {
-  const { db } = useApp();
+  const { loading } = useApp();
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  }
+
+  // TODO: routes not yet available in the new data model
+  const routes: any[] = [];
   
   return (
     <div className="space-y-6">
@@ -19,7 +26,7 @@ export default function Transport() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {db.routes.map(route => (
+        {routes.map((route: any) => (
           <Card key={route.id}>
             <CardContent className="p-6 flex justify-between items-center">
               <div className="flex items-center gap-4">

@@ -5,7 +5,14 @@ import { Shield, Plus } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 
 export default function Security() {
-  const { db } = useApp();
+  const { loading } = useApp();
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  }
+
+  // TODO: users list not yet available in the new data model
+  const users: any[] = [];
   
   return (
     <div className="space-y-6">
@@ -28,7 +35,7 @@ export default function Security() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {db.users.map((user) => (
+            {users.map((user: any) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium flex items-center gap-2"><Shield size={16} className="text-muted-foreground"/> {user.name}</TableCell>
                 <TableCell dir="ltr" className="text-right">{user.email}</TableCell>

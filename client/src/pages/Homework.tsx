@@ -11,8 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function Homework() {
-  const { db, setDb } = useApp();
-  const assignments = db.assignments;
+  const { data, loading } = useApp();
+  const assignments = data.assignments;
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -20,31 +20,20 @@ export default function Homework() {
   const [newClassId, setNewClassId] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
 
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>;
+  }
+
   const handleAddAssignment = () => {
       if (!newTitle || !newSubjectId || !newClassId) return;
-
-      const newAssignment = {
-          id: `asg-${Date.now()}`,
-          title: newTitle,
-          subjectId: newSubjectId,
-          classId: newClassId,
-          dueDate: newDueDate || new Date().toISOString().split('T')[0],
-          type: 'homework' as const,
-          totalMarks: 10,
-          status: 'active' as const
-      };
-
-      setDb({
-          ...db,
-          assignments: [newAssignment, ...db.assignments]
-      });
-
+      // TODO: Implement via API call
+      console.log('Add assignment:', { title: newTitle, subjectId: newSubjectId, classId: newClassId, dueDate: newDueDate });
       setIsAddOpen(false);
       setNewTitle("");
   };
 
-  const getClassName = (id: string) => db.classes.find(c => c.id === id)?.name;
-  const getSubjectName = (id: string) => db.subjects.find(s => s.id === id)?.name;
+  const getClassName = (id: string) => data.classes.find(c => c.id === id)?.name;
+  const getSubjectName = (id: string) => data.subjects.find(s => s.id === id)?.name;
 
   return (
     <div className="space-y-8">
@@ -68,7 +57,7 @@ export default function Homework() {
                   <Select value={newSubjectId} onValueChange={setNewSubjectId}>
                     <SelectTrigger><SelectValue placeholder="اختر المادة" /></SelectTrigger>
                     <SelectContent>
-                      {db.subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                      {data.subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -77,7 +66,7 @@ export default function Homework() {
                   <Select value={newClassId} onValueChange={setNewClassId}>
                     <SelectTrigger><SelectValue placeholder="اختر الفصل" /></SelectTrigger>
                     <SelectContent>
-                      {db.classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      {data.classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -95,8 +84,8 @@ export default function Homework() {
       <Tabs defaultValue="active" className="space-y-4">
         <TabsContent value="active" className="space-y-4">
           {assignments.map((assignment) => {
-              const studentsInClass = db.students.filter(s => s.classId === assignment.classId).length;
-              const submissions = db.grades.filter(g => g.assignmentId === assignment.id).length;
+              const studentsInClass = data.students.filter(s => s.classId === assignment.classId).length;
+              const submissions = data.grades.filter(g => g.assignmentId === assignment.id).length;
 
               return (
             <Card key={assignment.id} className="hover:border-primary/50 transition-colors">

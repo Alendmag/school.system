@@ -1,4 +1,3 @@
-import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { HeartPulse, Plus, AlertTriangle } from "lucide-react";
