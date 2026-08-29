@@ -1,6 +1,18 @@
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
-import { Bell, Moon, Sun, Languages, Search, CreditCard, MessageSquare, Clock, CircleUser as UserCircle, ChevronDown, Settings, LogOut, Command } from "lucide-react";
+import { 
+  Bell, 
+  Moon, 
+  Sun, 
+  Languages, 
+  Search,
+  Menu,
+  Check,
+  Clock,
+  CreditCard,
+  MessageSquare,
+  UserCircle
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,20 +23,21 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { UserRole } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
+// Mock Notifications Data
 const notifications = [
   {
     id: 1,
     title: "رسالة جديدة",
     description: "تلقيت رسالة جديدة من ولي أمر الطالب أحمد",
-    time: "منذ 5 د",
+    time: "منذ 5 دقائق",
     icon: MessageSquare,
     color: "text-blue-500",
-    bgColor: "bg-blue-50 dark:bg-blue-950/40",
+    bgColor: "bg-blue-50 dark:bg-blue-900/20",
     read: false
   },
   {
@@ -33,40 +46,44 @@ const notifications = [
     description: "تم إصدار فاتورة القسط الثاني لـ 45 طالب",
     time: "منذ ساعة",
     icon: CreditCard,
-    color: "text-amber-500",
-    bgColor: "bg-amber-50 dark:bg-amber-950/40",
+    color: "text-orange-500",
+    bgColor: "bg-orange-50 dark:bg-orange-900/20",
     read: false
   },
   {
     id: 3,
     title: "تأخر عن الحضور",
     description: "تأخر 12 طالب عن الطابور الصباحي اليوم",
-    time: "منذ 2 س",
+    time: "منذ ساعتين",
     icon: Clock,
     color: "text-red-500",
-    bgColor: "bg-red-50 dark:bg-red-950/40",
+    bgColor: "bg-red-50 dark:bg-red-900/20",
     read: true
   }
 ];
 
-const unreadCount = notifications.filter(n => !n.read).length;
-
 export function Header() {
-  const {
-    toggleTheme,
-    theme,
-    toggleLanguage,
+  const { 
+    toggleTheme, 
+    theme, 
+    toggleLanguage, 
+    language, 
     currentUser,
     setCurrentUser,
+    setInstitutionType,
+    institutionType
   } = useApp();
 
   const handleRoleChange = (role: UserRole) => {
     if (!currentUser) return;
-    setCurrentUser({ ...currentUser, role });
+    setCurrentUser({
+      ...currentUser,
+      role: role
+    });
   };
 
   const getRoleName = (role: string) => {
-    switch (role) {
+    switch(role) {
       case 'admin': return 'مدير النظام';
       case 'teacher': return 'معلم';
       case 'student': return 'طالب';
@@ -75,161 +92,110 @@ export function Header() {
     }
   };
 
-  const getRoleBadgeClass = (role: string) => {
-    switch (role) {
-      case 'admin': return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800';
-      case 'teacher': return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800';
-      case 'student': return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800';
-      case 'parent': return 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-800';
-      default: return '';
-    }
-  };
-
-  const initials = currentUser?.name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'US';
-
   return (
-    <header className="h-14 border-b border-border bg-card/95 backdrop-blur-sm sticky top-0 z-20 px-5 flex items-center justify-between gap-3 shrink-0">
-      {/* Left: Search */}
-      <div className="flex-1 max-w-[280px]">
-        <button
-          className="flex items-center gap-2 w-full h-8 px-3 text-sm text-muted-foreground bg-muted/50 border border-border/70 rounded-lg hover:bg-muted/80 hover:border-border transition-all duration-150 group"
-          onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
-        >
-          <Search size={12} className="shrink-0 text-muted-foreground/60 group-hover:text-muted-foreground transition-colors" />
-          <span className="flex-1 text-right text-[12px] text-muted-foreground/70">بحث سريع...</span>
-          <kbd className="hidden sm:flex items-center gap-0.5 font-mono text-[10px] bg-background/80 border border-border/60 rounded px-1.5 py-0.5 text-muted-foreground/50 leading-none">
-            <Command size={8} />K
-          </kbd>
-        </button>
+    <header className="h-16 border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-20 px-6 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-4 md:hidden">
+        <Button variant="ghost" size="icon">
+          <Menu size={20} />
+        </Button>
       </div>
 
-      {/* Right: Actions */}
-      <div className="flex items-center gap-0.5">
-        {/* Language */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleLanguage}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          title="تبديل اللغة"
-        >
-          <Languages size={15} />
+      <div className="hidden md:flex items-center max-w-md w-full bg-muted/50 rounded-full px-4 py-1.5 border border-border focus-within:border-primary/50 focus-within:bg-background transition-all">
+        <Search size={18} className="text-muted-foreground" />
+        <input 
+          type="text" 
+          placeholder={language === 'ar' ? "بحث في النظام..." : "Search..."}
+          className="bg-transparent border-none outline-none px-3 text-sm w-full placeholder:text-muted-foreground/70"
+        />
+      </div>
+
+      <div className="flex items-center gap-2 mr-auto">
+        <Button variant="ghost" size="icon" onClick={toggleLanguage} className="rounded-full">
+          <Languages size={20} />
         </Button>
 
-        {/* Theme */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleTheme}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          title={theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}
-        >
-          {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+        <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
+          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
         </Button>
 
-        {/* Notifications */}
         <DropdownMenu dir="rtl">
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground relative">
-              <Bell size={15} />
-              {unreadCount > 0 && (
-                <span className="absolute top-[7px] right-[7px] w-[7px] h-[7px] bg-red-500 rounded-full ring-2 ring-card" />
-              )}
+            <Button variant="ghost" size="icon" className="rounded-full relative">
+              <Bell size={20} />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full border-2 border-background"></span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-[340px]" align="end">
-            <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
-              <span className="text-sm font-semibold">الإشعارات</span>
-              {unreadCount > 0 && (
-                <Badge className="bg-primary/10 text-primary border-0 text-[10px] h-5 px-1.5">
-                  {unreadCount} جديد
-                </Badge>
-              )}
-            </div>
-            <div className="divide-y divide-border">
-              {notifications.map((n) => (
-                <div
-                  key={n.id}
-                  className={cn(
-                    "flex gap-3 px-3 py-3 cursor-pointer hover:bg-muted/50 transition-colors",
-                    !n.read && "bg-primary/[0.02]"
-                  )}
-                >
-                  <div className={`p-1.5 rounded-md ${n.bgColor} ${n.color} mt-0.5 shrink-0`}>
-                    <n.icon size={13} />
+          <DropdownMenuContent className="w-80 font-arabic" align="end">
+            <DropdownMenuLabel className="flex items-center justify-between">
+              <span>الإشعارات</span>
+              <Badge variant="secondary" className="font-normal">{notifications.filter(n => !n.read).length} غير مقروء</Badge>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <div className="max-h-[300px] overflow-y-auto">
+              {notifications.map((notification) => (
+                <DropdownMenuItem key={notification.id} className="flex gap-3 p-3 cursor-pointer items-start">
+                  <div className={`p-2 rounded-full ${notification.bgColor} ${notification.color} mt-0.5`}>
+                    <notification.icon size={16} />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={cn("text-[13px] font-medium leading-tight", n.read && "text-muted-foreground")}>
-                      {n.title}
+                  <div className="flex-1 space-y-1">
+                    <p className={`text-sm font-medium leading-none ${!notification.read ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      {notification.title}
                     </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{n.description}</p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-1">{n.time}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {notification.description}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/70">
+                      {notification.time}
+                    </p>
                   </div>
-                  {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />}
-                </div>
+                  {!notification.read && (
+                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
+                  )}
+                </DropdownMenuItem>
               ))}
             </div>
-            <div className="px-3 py-2 border-t border-border">
-              <button className="w-full text-[12px] text-primary text-center hover:underline">
-                عرض كل الإشعارات
-              </button>
-            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="w-full text-center text-primary justify-center cursor-pointer">
+              عرض كل الإشعارات
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Divider */}
-        <div className="w-px h-4 bg-border mx-1.5" />
-
-        {/* User Menu */}
         <DropdownMenu dir="rtl">
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-muted transition-colors group">
-              <Avatar className="h-7 w-7 border border-border">
-                <AvatarFallback className="bg-primary/10 text-primary text-[11px] font-bold">
-                  {initials}
-                </AvatarFallback>
+            <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0 ml-2">
+              <Avatar className="h-9 w-9 border border-border">
+                <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
+                <AvatarFallback>US</AvatarFallback>
               </Avatar>
-              <div className="hidden sm:flex flex-col items-start leading-none">
-                <span className="text-[12px] font-semibold text-foreground">{currentUser?.name?.split(' ')[0]}</span>
-                <span className={cn(
-                  "text-[10px] px-1.5 py-0 rounded border font-medium mt-0.5",
-                  getRoleBadgeClass(currentUser?.role || '')
-                )}>
-                  {getRoleName(currentUser?.role || '')}
-                </span>
-              </div>
-              <ChevronDown size={12} className="text-muted-foreground hidden sm:block" />
-            </button>
+            </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-60" align="end" forceMount>
-            <div className="px-3 py-2.5 border-b border-border">
-              <p className="text-[13px] font-semibold">{currentUser?.name}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{currentUser?.email}</p>
-            </div>
-            <div className="py-1">
-              <DropdownMenuItem className="text-[13px] gap-2">
-                <UserCircle size={14} /> الملف الشخصي
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-[13px] gap-2">
-                <Settings size={14} /> الإعدادات
-              </DropdownMenuItem>
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-[11px] text-muted-foreground flex items-center gap-1.5 py-1.5">
-              <UserCircle size={12} /> تبديل الصلاحية
+          <DropdownMenuContent className="w-64 font-arabic" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{currentUser?.name}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline" className="text-[10px]">{getRoleName(currentUser?.role || '')}</Badge>
+                  <p className="text-xs leading-none text-muted-foreground">{currentUser?.email}</p>
+                </div>
+              </div>
             </DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              value={currentUser?.role}
-              onValueChange={(val) => handleRoleChange(val as UserRole)}
-            >
-              <DropdownMenuRadioItem value="admin" className="text-[13px]">مدير النظام</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="teacher" className="text-[13px]">معلم</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="student" className="text-[13px]">طالب</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="parent" className="text-[13px]">ولي أمر</DropdownMenuRadioItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs text-muted-foreground flex items-center gap-2">
+              <UserCircle size={14} /> تبديل الصلاحية (للمعاينة)
+            </DropdownMenuLabel>
+            <DropdownMenuRadioGroup value={currentUser?.role} onValueChange={(val) => handleRoleChange(val as UserRole)}>
+              <DropdownMenuRadioItem value="admin">مدير النظام (Admin)</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="teacher">معلم (Teacher)</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="student">طالب (Student)</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="parent">ولي أمر (Parent)</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-[13px] gap-2 text-destructive focus:text-destructive">
-              <LogOut size={14} /> تسجيل الخروج
+            <DropdownMenuItem>الملف الشخصي</DropdownMenuItem>
+            <DropdownMenuItem>الإعدادات</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-destructive focus:text-destructive">
+              تسجيل الخروج
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
