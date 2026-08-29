@@ -1,13 +1,15 @@
-import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Bus, Plus, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
+const staticRoutes = [
+  { id: "1", name: "مسار الشمال", driverId: "سائق 1", vehicleId: "حافلة أ", capacity: 40 },
+  { id: "2", name: "مسار الجنوب", driverId: "سائق 2", vehicleId: "حافلة ب", capacity: 35 },
+  { id: "3", name: "مسار الشرق", driverId: "سائق 3", vehicleId: "حافلة ج", capacity: 30 },
+];
+
 export default function Transport() {
-  const { db } = useApp();
-  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -19,11 +21,11 @@ export default function Transport() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {db.routes.map(route => (
+        {staticRoutes.map(route => (
           <Card key={route.id}>
             <CardContent className="p-6 flex justify-between items-center">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-100 text-blue-600 rounded-full"><Bus size={24}/></div>
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-full"><Bus size={24}/></div>
                 <div>
                   <h3 className="font-bold text-lg">{route.name}</h3>
                   <p className="text-sm text-muted-foreground">السائق: {route.driverId} | الحافلة: {route.vehicleId}</p>

@@ -2,11 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Plus } from "lucide-react";
-import { useApp } from "@/context/AppContext";
+
+const staticUsers = [
+  { id: "1", name: "د. سامي العلي", email: "admin@school.edu", role: "admin" },
+  { id: "2", name: "أ. أحمد محمد", email: "ahmed@school.edu", role: "teacher" },
+  { id: "3", name: "أ. فاطمة خالد", email: "fatima@school.edu", role: "teacher" },
+];
 
 export default function Security() {
-  const { db } = useApp();
-  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -28,13 +31,11 @@ export default function Security() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {db.users.map((user) => (
+            {staticUsers.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium flex items-center gap-2"><Shield size={16} className="text-muted-foreground"/> {user.name}</TableCell>
                 <TableCell dir="ltr" className="text-right">{user.email}</TableCell>
-                <TableCell className="text-center">
-                  <Badge variant="outline">{user.role}</Badge>
-                </TableCell>
+                <TableCell className="text-center"><Badge variant="outline">{user.role}</Badge></TableCell>
                 <TableCell className="text-center text-muted-foreground text-sm">منذ ساعتين</TableCell>
               </TableRow>
             ))}

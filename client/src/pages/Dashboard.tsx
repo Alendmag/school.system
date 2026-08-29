@@ -1,11 +1,9 @@
 import { useApp } from "@/context/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Users, GraduationCap, BookOpen, TrendingUp, CalendarCheck, AlertCircle, School, FileText, Clock, CheckCircle2, CalendarDays, Receipt
-} from "lucide-react";
+import { Users, GraduationCap, BookOpen, TrendingUp, CalendarCheck, CircleAlert as AlertCircle, School, FileText, Clock, CircleCheck as CheckCircle2, CalendarDays, Receipt } from "lucide-react";
 
 export default function Dashboard() {
-  const { currentUser, db, services } = useApp();
+  const { currentUser, data, loading } = useApp();
 
   const StatCard = ({ title, value, icon: Icon, trend, color, trendText = "منذ الأسبوع الماضي" }: any) => (
     <Card className="overflow-hidden border-none shadow-sm hover:shadow-md transition-all duration-300 bg-gradient-to-br from-card to-muted/30">
@@ -29,19 +27,17 @@ export default function Dashboard() {
     </Card>
   );
 
-  const notifications = services.getNotificationsForUser(currentUser);
+  const attRecords = data.attendance || [];
+  const attPresent = attRecords.filter((a: any) => a.status === 'present' || a.status === 'late').length;
+  const attendancePct = attRecords.length > 0 ? (attPresent / attRecords.length) * 100 : 0;
 
-  // Admin Dashboard View dynamically calculated from DB
-  const AdminDashboard = () => {
-    const schoolAttendance = services.getSchoolAttendanceStats();
-    
-    return (
+  const AdminDashboard = () => (
     <>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="إجمالي الطلاب" value={db.students.length} icon={Users} trend="+2%" color="blue" />
-        <StatCard title="الكادر التعليمي" value={db.teachers.length} icon={GraduationCap} trend="ثابت" trendText="هذا الشهر" color="purple" />
-        <StatCard title="الفصول الدراسية" value={db.classes.length} icon={School} trend="ثابت" trendText="هذا الفصل" color="amber" />
-        <StatCard title="نسبة الحضور اليوم" value={`${schoolAttendance.toFixed(1)}%`} icon={CalendarCheck} trend="+1.5%" trendText="مقارنة بأمس" color="emerald" />
+        <StatCard title="إجمالي الطلاب" value={data.students.length} icon={Users} trend="+2%" color="blue" />
+        <StatCard title="الكادر التعليمي" value={data.teachers.length} icon={GraduationCap} trend="ثابت" trendText="هذا الشهر" color="green" />
+        <StatCard title="الفصول الدراسية" value={data.classes.length} icon={School} trend="ثابت" trendText="هذا الفصل" color="amber" />
+        <StatCard title="نسبة الحضور اليوم" value={`${attendancePct.toFixed(1)}%`} icon={CalendarCheck} trend="+1.5%" trendText="مقارنة بأمس" color="emerald" />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
@@ -56,28 +52,38 @@ export default function Dashboard() {
         </Card>
 
         <Card className="col-span-3 border-none shadow-sm">
-          <CardHeader><CardTitle>مركز الإشعارات</CardTitle></CardHeader>
+          <CardHeader><CardTitle>ملخص سريع</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {notifications.slice(0, 4).map(n => (
-                <div key={n.id} className={`flex items-start gap-4 p-3 rounded-lg border ${n.type === 'alert' ? 'bg-red-50/50 border-red-100' : n.type === 'finance' ? 'bg-orange-50/50 border-orange-100' : 'hover:bg-muted/50 border-transparent hover:border-border'}`}>
-                  <div className={`p-2 rounded-full shrink-0 ${n.type === 'alert' ? 'bg-red-100 text-red-600' : n.type === 'finance' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                    {n.type === 'alert' ? <AlertCircle size={16} /> : n.type === 'finance' ? <Receipt size={16} /> : <FileText size={16}/>}
-                  </div>
-                  <div className="space-y-1">
-                    <p className={`text-sm font-bold leading-none ${n.type === 'alert' ? 'text-red-800' : n.type === 'finance' ? 'text-orange-800' : ''}`}>{n.title}</p>
-                    <p className="text-xs text-muted-foreground">{n.message}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">{n.time}</p>
-                  </div>
+              <div className="flex items-start gap-4 p-3 rounded-lg bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900">
+                <div className="p-2 rounded-full bg-blue-100 text-blue-600"><FileText size={16} /></div>
+                <div className="space-y-1">
+                  <p className="text-sm font-bold leading-none">الفواتير</p>
+                  <p className="text-xs text-muted-foreground">{data.invoices.length} فاتورة مسجلة</p>
                 </div>
-              ))}
-              {notifications.length === 0 && <p className="text-sm text-muted-foreground text-center">لا توجد إشعارات جديدة</p>}
+              </div>
+              <div className="flex items-start gap-4 p-3 rounded-lg bg-green-50/50 dark:bg-green-900/20 border border-green-100 dark:border-green-900">
+                <div className="p-2 rounded-full bg-green-100 text-green-600"><CheckCircle2 size={16} /></div>
+                <div className="space-y-1">
+                  <p className="text-sm font-bold leading-none">المواد الدراسية</p>
+                  <p className="text-xs text-muted-foreground">{data.subjects.length} مادة نشطة</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4 p-3 rounded-lg bg-amber-50/50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900">
+                <div className="p-2 rounded-full bg-amber-100 text-amber-600"><CalendarDays size={16} /></div>
+                <div className="space-y-1">
+                  <p className="text-sm font-bold leading-none">الحضور</p>
+                  <p className="text-xs text-muted-foreground">{attRecords.length} سجل حضور اليوم</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
     </>
-  )};
+  );
+
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
 
   return (
     <div className="space-y-8">
@@ -85,7 +91,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">مرحباً، {currentUser?.name} 👋</h1>
           <p className="text-muted-foreground mt-1">
-            {currentUser?.role === 'admin' && 'نظام ERP التعليمي - متصل بالبيانات الموحدة.'}
+            {currentUser?.role === 'admin' && 'نظام ERP التعليمي - متصل بقاعدة البيانات.'}
             {currentUser?.role === 'teacher' && 'بوابتك التعليمية - مهامك، حصصك وطلابك.'}
             {currentUser?.role === 'student' && 'بوابتك الأكاديمية - بياناتك وحضورك.'}
             {currentUser?.role === 'parent' && 'بوابة ولي الأمر - لمتابعة الأبناء.'}

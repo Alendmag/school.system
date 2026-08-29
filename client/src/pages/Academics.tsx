@@ -1,14 +1,13 @@
-import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { BookOpen, Plus, Users, Clock, MoreHorizontal, FileText, GraduationCap } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { BookOpen, Plus, Users, GraduationCap } from "lucide-react";
 
 export default function Academics() {
-  const { db, setDb } = useApp();
+  const { data, loading } = useApp();
+
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
 
   return (
     <div className="space-y-8">
@@ -30,7 +29,7 @@ export default function Academics() {
           </h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {db.subjects.map((subject) => (
+          {data.subjects.map((subject: any) => (
             <Card key={subject.id} className="hover:shadow-md transition-all group border-border/60">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
@@ -55,8 +54,8 @@ export default function Academics() {
           </h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {db.classes.map((cls) => {
-            const classStudents = db.students.filter(s => s.classId === cls.id).length;
+          {data.classes.map((cls: any) => {
+            const classStudents = data.students.filter((s: any) => s.class_id === cls.id).length;
             return (
             <div key={cls.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-card">
               <div className="flex items-center gap-4">

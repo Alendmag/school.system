@@ -7,7 +7,6 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { CommandPalette } from "@/components/CommandPalette";
 import Dashboard from "@/pages/Dashboard";
 import Students from "@/pages/Students";
-import StudentsGrid from "@/pages/StudentsGrid";
 import NotFound from "@/pages/not-found";
 import SettingsPage from "@/pages/Settings";
 
@@ -32,8 +31,7 @@ function Router() {
     <MainLayout>
       <Switch>
         <Route path="/" component={Dashboard} />
-        <Route path="/students" component={StudentsGrid} />
-        <Route path="/students-old" component={Students} />
+        <Route path="/students" component={Students} />
         <Route path="/teachers" component={Teachers} />
         <Route path="/academics" component={Academics} />
         <Route path="/finance" component={Finance} />

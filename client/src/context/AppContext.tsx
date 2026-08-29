@@ -1,7 +1,28 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
-import { Language, Theme, InstitutionType, UserRole, User, Institution, MockDatabase } from '../lib/types';
-import { INITIAL_DB } from '../lib/mockData';
-import { ERPServices } from '../lib/services';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { Language, Theme, InstitutionType, User, Institution } from '../lib/types';
+import { api, setCurrentSchoolId } from '../lib/api';
+
+export interface AppData {
+  students: any[];
+  classes: any[];
+  teachers: any[];
+  subjects: any[];
+  guardians: any[];
+  invoices: any[];
+  payments: any[];
+  attendance: any[];
+  assignments: any[];
+  exams: any[];
+  grades: any[];
+  academicYears: any[];
+  terms: any[];
+}
+
+const emptyData: AppData = {
+  students: [], classes: [], teachers: [], subjects: [], guardians: [],
+  invoices: [], payments: [], attendance: [], assignments: [], exams: [],
+  grades: [], academicYears: [], terms: [],
+};
 
 interface AppContextType {
   language: Language;
@@ -16,18 +37,14 @@ interface AppContextType {
   setInstitution: (inst: Institution) => void;
   toggleTheme: () => void;
   toggleLanguage: () => void;
-  
-  // Mock Database State & Services
-  db: MockDatabase;
-  setDb: React.Dispatch<React.SetStateAction<MockDatabase>>;
-  services: ERPServices;
+  data: AppData;
+  loading: boolean;
+  schoolId: string | null;
+  refreshData: () => Promise<void>;
+  refreshStudents: () => Promise<void>;
+  refreshAttendance: () => Promise<void>;
+  refreshInvoices: () => Promise<void>;
 }
-
-const defaultInstitution: Institution = {
-  id: 'inst-1',
-  name: 'أكاديمية المستقبل',
-  type: 'school',
-};
 
 const defaultUser: User = {
   id: 'u1',
@@ -43,32 +60,97 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>('ar');
   const [theme, setTheme] = useState<Theme>('light');
   const [institutionType, setInstitutionType] = useState<InstitutionType>('school');
-  const [currentUser, setCurrentUser] = useState<User | null>(INITIAL_DB.users[0]);
+  const [currentUser, setCurrentUser] = useState<User | null>(defaultUser);
   const [institution, setInstitution] = useState<Institution>({
-    ...defaultInstitution,
-    type: 'school',
-    name: 'مدرسة التميز النموذجية'
+    id: 'inst-1', name: 'مدرسة التميز النموذجية', type: 'school',
   });
-  
-  // Initialize Mock DB
-  const [db, setDb] = useState<MockDatabase>(INITIAL_DB);
-  
-  // Memoize services to avoid recreating on every render, but update when db changes
-  const services = useMemo(() => new ERPServices(db), [db]);
+  const [data, setData] = useState<AppData>(emptyData);
+  const [loading, setLoading] = useState(true);
+  const [schoolId, setSchoolId] = useState<string | null>(null);
+
+  const refreshStudents = useCallback(async () => {
+    try {
+      const res = await api.getStudents();
+      setData(prev => ({ ...prev, students: res.data || [] }));
+    } catch (e) { console.error('refreshStudents:', e); }
+  }, []);
+
+  const refreshAttendance = useCallback(async () => {
+    try {
+      const att = await api.getAttendance();
+      setData(prev => ({ ...prev, attendance: att || [] }));
+    } catch (e) { console.error('refreshAttendance:', e); }
+  }, []);
+
+  const refreshInvoices = useCallback(async () => {
+    try {
+      const inv = await api.getInvoices();
+      setData(prev => ({ ...prev, invoices: inv || [] }));
+    } catch (e) { console.error('refreshInvoices:', e); }
+  }, []);
+
+  const refreshData = useCallback(async () => {
+    try {
+      const [studentsRes, classes, teachers, subjects, guardians, invoices, payments, attendance, assignments, exams, grades, academicYears, terms] = await Promise.all([
+        api.getStudents(),
+        api.getClasses(),
+        api.getTeachers(),
+        api.getSubjects(),
+        api.getGuardians(),
+        api.getInvoices(),
+        api.getPayments(),
+        api.getAttendance(),
+        api.getAssignments(),
+        api.getExams(),
+        api.getGrades(),
+        api.getAcademicYears(),
+        api.getTerms(),
+      ]);
+      setData({
+        students: studentsRes.data || [],
+        classes: classes || [],
+        teachers: teachers || [],
+        subjects: subjects || [],
+        guardians: guardians || [],
+        invoices: invoices || [],
+        payments: payments || [],
+        attendance: attendance || [],
+        assignments: assignments || [],
+        exams: exams || [],
+        grades: grades || [],
+        academicYears: academicYears || [],
+        terms: terms || [],
+      });
+    } catch (e) { console.error('refreshData:', e); }
+  }, []);
 
   useEffect(() => {
-    // Handle HTML dir and lang attributes
+    let cancelled = false;
+    async function init() {
+      setLoading(true);
+      try {
+        const result = await api.init();
+        const sid = result.school?.id;
+        if (sid) {
+          setSchoolId(sid);
+          setCurrentSchoolId(sid);
+          if (!cancelled) await refreshData();
+        }
+      } catch (e) { console.error('init:', e); }
+      if (!cancelled) setLoading(false);
+    }
+    init();
+    return () => { cancelled = true; };
+  }, [refreshData]);
+
+  useEffect(() => {
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = language;
   }, [language]);
 
   useEffect(() => {
-    // Handle dark mode class
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (theme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [theme]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -76,21 +158,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      language,
-      setLanguage,
-      theme,
-      setTheme,
-      institutionType,
-      setInstitutionType,
-      currentUser,
-      setCurrentUser,
-      institution,
-      setInstitution,
-      toggleTheme,
-      toggleLanguage,
-      db,
-      setDb,
-      services
+      language, setLanguage, theme, setTheme, institutionType, setInstitutionType,
+      currentUser, setCurrentUser, institution, setInstitution, toggleTheme, toggleLanguage,
+      data, loading, schoolId, refreshData, refreshStudents, refreshAttendance, refreshInvoices,
     }}>
       {children}
     </AppContext.Provider>
@@ -99,8 +169,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 export function useApp() {
   const context = useContext(AppContext);
-  if (context === undefined) {
-    throw new Error('useApp must be used within an AppProvider');
-  }
+  if (context === undefined) throw new Error('useApp must be used within an AppProvider');
   return context;
 }

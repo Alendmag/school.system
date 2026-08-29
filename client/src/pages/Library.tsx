@@ -1,12 +1,17 @@
-import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Book, Plus } from "lucide-react";
 
+const staticBooks = [
+  { id: "1", title: "الرياضيات المعاصرة", author: "د. أحمد خالد", category: "رياضيات", totalCopies: 30, availableCopies: 12 },
+  { id: "2", title: "العلوم الطبيعية", author: "د. سارة محمد", category: "علوم", totalCopies: 25, availableCopies: 8 },
+  { id: "3", title: "قواعد اللغة العربية", author: "أ. فاطمة علي", category: "لغة عربية", totalCopies: 40, availableCopies: 20 },
+  { id: "4", title: "English Grammar", author: "J. Smith", category: "لغة إنجليزية", totalCopies: 35, availableCopies: 15 },
+  { id: "5", title: "تاريخ الحضارات", author: "د. محمود حسن", category: "تاريخ", totalCopies: 20, availableCopies: 5 },
+];
+
 export default function Library() {
-  const { db } = useApp();
-  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -28,7 +33,7 @@ export default function Library() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {db.libraryBooks.map((book) => (
+            {staticBooks.map((book) => (
               <TableRow key={book.id}>
                 <TableCell className="font-medium flex items-center gap-2"><Book size={16} className="text-muted-foreground"/> {book.title}</TableCell>
                 <TableCell>{book.author}</TableCell>
