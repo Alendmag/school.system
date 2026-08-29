@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { School, LogIn, UserPlus, Loader2 } from 'lucide-react';
+import { School, LogIn, UserPlus, Loader as Loader2 } from 'lucide-react';
 
 type Mode = 'login' | 'signup';
 

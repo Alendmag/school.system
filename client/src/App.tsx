@@ -28,7 +28,7 @@ import Health from "@/pages/Health";
 import Maintenance from "@/pages/Maintenance";
 import Grades from "@/pages/Grades";
 
-import { Loader2 } from "lucide-react";
+import { Loader as Loader2 } from "lucide-react";
 
 function Router() {
   return (
