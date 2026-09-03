@@ -251,17 +251,21 @@ function TermsTab({ data, refreshTerms }: { data: any; refreshTerms: () => Promi
 function ClassesTab({ data, refreshClasses }: { data: any; refreshClasses: () => Promise<void> }) {
   const [isOpen, setIsOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", level: "", capacity: "30", advisor_id: "" });
+  const [form, setForm] = useState({ name: "", level: "", capacity: "30", advisor_id: "", academic_year_id: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [filterYear, setFilterYear] = useState<string>("all");
 
-  const openAdd = () => { setEditId(null); setForm({ name: "", level: "", capacity: "30", advisor_id: "" }); setError(""); setIsOpen(true); };
-  const openEdit = (c: any) => { setEditId(c.id); setForm({ name: c.name, level: c.level, capacity: String(c.capacity), advisor_id: c.advisor_id || "" }); setError(""); setIsOpen(true); };
+  const activeYear = data.academicYears.find((ay: any) => ay.status === "active");
+  const filteredClasses = filterYear === "all" ? data.classes : data.classes.filter((c: any) => c.academic_year_id === filterYear);
+
+  const openAdd = () => { setEditId(null); setForm({ name: "", level: "", capacity: "30", advisor_id: "", academic_year_id: activeYear?.id || data.academicYears[0]?.id || "" }); setError(""); setIsOpen(true); };
+  const openEdit = (c: any) => { setEditId(c.id); setForm({ name: c.name, level: c.level, capacity: String(c.capacity), advisor_id: c.advisor_id || "", academic_year_id: c.academic_year_id || "" }); setError(""); setIsOpen(true); };
 
   const handleSave = async () => {
     setSaving(true); setError("");
     try {
-      const payload = { name: form.name, level: form.level, capacity: parseInt(form.capacity) || 30, advisor_id: form.advisor_id || null };
+      const payload = { name: form.name, level: form.level, capacity: parseInt(form.capacity) || 30, advisor_id: form.advisor_id || null, academic_year_id: form.academic_year_id };
       if (editId) await api.updateClass(editId, payload);
       else await api.createClass(payload);
       await refreshClasses(); setIsOpen(false);
@@ -274,17 +278,26 @@ function ClassesTab({ data, refreshClasses }: { data: any; refreshClasses: () =>
     catch (e: any) { alert(e.message); }
   };
 
-  const levels = [...new Set(data.classes.map((c: any) => c.level))].sort((a: string, b: string) => parseInt(a) - parseInt(b));
+  const levels = Array.from(new Set(filteredClasses.map((c: any) => c.level) as string[])).sort((a, b) => parseInt(a) - parseInt(b));
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold">الشُعب والفصول ({data.classes.length})</h2>
-        <Button onClick={openAdd} className="gap-2"><Plus size={16} /> إضافة شعبة</Button>
+      <div className="flex justify-between items-center flex-wrap gap-2">
+        <h2 className="text-lg font-semibold">الشُعب والفصول ({filteredClasses.length})</h2>
+        <div className="flex gap-2">
+          <Select value={filterYear} onValueChange={setFilterYear}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="فلترة بالسنة" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">جميع السنوات</SelectItem>
+              {data.academicYears.map((ay: any) => <SelectItem key={ay.id} value={ay.id}>{ay.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button onClick={openAdd} className="gap-2"><Plus size={16} /> إضافة شعبة</Button>
+        </div>
       </div>
 
       {levels.map((level: string) => {
-        const levelClasses = data.classes.filter((c: any) => c.level === level);
+        const levelClasses = filteredClasses.filter((c: any) => c.level === level);
         return (
           <div key={level}>
             <h3 className="font-semibold text-sm text-muted-foreground mb-2">الصف {level}</h3>
@@ -292,6 +305,7 @@ function ClassesTab({ data, refreshClasses }: { data: any; refreshClasses: () =>
               {levelClasses.map((cls: any) => {
                 const studentCount = data.students.filter((s: any) => s.class_id === cls.id).length;
                 const advisor = data.teachers.find((t: any) => t.id === cls.advisor_id);
+                const ay = data.academicYears.find((a: any) => a.id === cls.academic_year_id);
                 return (
                   <Card key={cls.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
@@ -299,6 +313,7 @@ function ClassesTab({ data, refreshClasses }: { data: any; refreshClasses: () =>
                         <h4 className="font-bold">{cls.name}</h4>
                         <Badge variant="secondary"><Users size={12} className="ml-1" />{studentCount}/{cls.capacity}</Badge>
                       </div>
+                      {ay && <p className="text-xs text-muted-foreground mb-1">{ay.name}</p>}
                       {advisor && <p className="text-sm text-muted-foreground mb-2">المرشد: {advisor.name}</p>}
                       <div className="flex gap-1 mt-2">
                         <Button size="sm" variant="ghost" onClick={() => openEdit(cls)}><Edit2 size={14} /></Button>
@@ -312,12 +327,18 @@ function ClassesTab({ data, refreshClasses }: { data: any; refreshClasses: () =>
           </div>
         );
       })}
-      {data.classes.length === 0 && <p className="text-muted-foreground text-center py-8">لا توجد فصول بعد</p>}
+      {filteredClasses.length === 0 && <p className="text-muted-foreground text-center py-8">لا توجد فصول بعد</p>}
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editId ? "تعديل الشعبة" : "إضافة شعبة"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            <div><Label>السنة الدراسية</Label>
+              <Select value={form.academic_year_id} onValueChange={v => setForm({ ...form, academic_year_id: v })}>
+                <SelectTrigger><SelectValue placeholder="اختر السنة الدراسية" /></SelectTrigger>
+                <SelectContent>{data.academicYears.map((ay: any) => <SelectItem key={ay.id} value={ay.id}>{ay.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
             <div><Label>اسم الشعبة</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="الصف 1 - أ" /></div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>المرحلة / الصف</Label><Input value={form.level} onChange={e => setForm({ ...form, level: e.target.value })} placeholder="1" /></div>
@@ -420,6 +441,7 @@ function SubjectsTab({ data, refreshSubjects }: { data: any; refreshSubjects: ()
 
 function AssignmentsTab({ data, refreshAssignments }: { data: any; refreshAssignments: () => Promise<void> }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ teacher_id: "", subject_id: "", class_id: "", academic_year_id: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -427,16 +449,28 @@ function AssignmentsTab({ data, refreshAssignments }: { data: any; refreshAssign
 
   const assignments = filterYear === "all" ? data.teacherAssignments : data.teacherAssignments.filter((a: any) => a.academic_year_id === filterYear);
 
+  const compatibleClasses = form.academic_year_id
+    ? data.classes.filter((c: any) => c.academic_year_id === form.academic_year_id)
+    : data.classes;
+
   const openAdd = () => {
     const activeYear = data.academicYears.find((ay: any) => ay.status === "active");
+    setEditId(null);
     setForm({ teacher_id: "", subject_id: "", class_id: "", academic_year_id: activeYear?.id || data.academicYears[0]?.id || "" });
+    setError(""); setIsOpen(true);
+  };
+
+  const openEdit = (a: any) => {
+    setEditId(a.id);
+    setForm({ teacher_id: a.teacher_id, subject_id: a.subject_id, class_id: a.class_id, academic_year_id: a.academic_year_id });
     setError(""); setIsOpen(true);
   };
 
   const handleSave = async () => {
     setSaving(true); setError("");
     try {
-      await api.createTeacherAssignment(form);
+      if (editId) await api.updateTeacherAssignment(editId, form);
+      else await api.createTeacherAssignment(form);
       await refreshAssignments(); setIsOpen(false);
     } catch (e: any) { setError(e.message); }
     setSaving(false);
@@ -473,7 +507,7 @@ function AssignmentsTab({ data, refreshAssignments }: { data: any; refreshAssign
               <TableHead className="text-right">المادة</TableHead>
               <TableHead className="text-right">الشعبة</TableHead>
               <TableHead className="text-right">السنة الدراسية</TableHead>
-              <TableHead className="text-right w-16">حذف</TableHead>
+              <TableHead className="text-right w-24">إجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -484,7 +518,10 @@ function AssignmentsTab({ data, refreshAssignments }: { data: any; refreshAssign
                 <TableCell>{getName(data.classes, a.class_id)}</TableCell>
                 <TableCell>{getName(data.academicYears, a.academic_year_id)}</TableCell>
                 <TableCell>
-                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(a.id)}><Trash2 size={14} /></Button>
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(a)}><Edit2 size={14} /></Button>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(a.id)}><Trash2 size={14} /></Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -495,8 +532,14 @@ function AssignmentsTab({ data, refreshAssignments }: { data: any; refreshAssign
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>إضافة توزيع معلم</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editId ? "تعديل التوزيع" : "إضافة توزيع معلم"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            <div><Label>السنة الدراسية</Label>
+              <Select value={form.academic_year_id} onValueChange={v => setForm({ ...form, academic_year_id: v, class_id: "" })}>
+                <SelectTrigger><SelectValue placeholder="اختر السنة" /></SelectTrigger>
+                <SelectContent>{data.academicYears.map((ay: any) => <SelectItem key={ay.id} value={ay.id}>{ay.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
             <div><Label>المعلم</Label>
               <Select value={form.teacher_id} onValueChange={v => setForm({ ...form, teacher_id: v })}>
                 <SelectTrigger><SelectValue placeholder="اختر المعلم" /></SelectTrigger>
@@ -512,13 +555,10 @@ function AssignmentsTab({ data, refreshAssignments }: { data: any; refreshAssign
             <div><Label>الشعبة</Label>
               <Select value={form.class_id} onValueChange={v => setForm({ ...form, class_id: v })}>
                 <SelectTrigger><SelectValue placeholder="اختر الشعبة" /></SelectTrigger>
-                <SelectContent>{data.classes.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div><Label>السنة الدراسية</Label>
-              <Select value={form.academic_year_id} onValueChange={v => setForm({ ...form, academic_year_id: v })}>
-                <SelectTrigger><SelectValue placeholder="اختر السنة" /></SelectTrigger>
-                <SelectContent>{data.academicYears.map((ay: any) => <SelectItem key={ay.id} value={ay.id}>{ay.name}</SelectItem>)}</SelectContent>
+                <SelectContent>
+                  {compatibleClasses.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  {compatibleClasses.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">لا توجد شعب لهذه السنة</div>}
+                </SelectContent>
               </Select>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}

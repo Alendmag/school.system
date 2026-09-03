@@ -111,6 +111,8 @@ export const api = {
   },
   createTeacherAssignment: (data: any) =>
     apiFetch<any>('/api/teacher-assignments', { method: 'POST', body: JSON.stringify(data) }),
+  updateTeacherAssignment: (id: string, data: any) =>
+    apiFetch<any>(`/api/teacher-assignments/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteTeacherAssignment: (id: string) =>
     apiFetch<any>(`/api/teacher-assignments/${id}`, { method: 'DELETE' }),
 
