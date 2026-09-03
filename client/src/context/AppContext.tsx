@@ -17,12 +17,13 @@ export interface AppData {
   grades: any[];
   academicYears: any[];
   terms: any[];
+  teacherAssignments: any[];
 }
 
 const emptyData: AppData = {
   students: [], classes: [], teachers: [], subjects: [], guardians: [],
   invoices: [], payments: [], attendance: [], assignments: [], exams: [],
-  grades: [], academicYears: [], terms: [],
+  grades: [], academicYears: [], terms: [], teacherAssignments: [],
 };
 
 interface AppContextType {
@@ -45,6 +46,12 @@ interface AppContextType {
   refreshStudents: () => Promise<void>;
   refreshAttendance: () => Promise<void>;
   refreshInvoices: () => Promise<void>;
+  refreshTeachers: () => Promise<void>;
+  refreshClasses: () => Promise<void>;
+  refreshSubjects: () => Promise<void>;
+  refreshAcademicYears: () => Promise<void>;
+  refreshTerms: () => Promise<void>;
+  refreshTeacherAssignments: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -96,9 +103,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (e) { console.error('refreshInvoices:', e); }
   }, []);
 
+  const refreshTeachers = useCallback(async () => {
+    try {
+      const t = await api.getTeachers();
+      setData(prev => ({ ...prev, teachers: t || [] }));
+    } catch (e) { console.error('refreshTeachers:', e); }
+  }, []);
+
+  const refreshClasses = useCallback(async () => {
+    try {
+      const c = await api.getClasses();
+      setData(prev => ({ ...prev, classes: c || [] }));
+    } catch (e) { console.error('refreshClasses:', e); }
+  }, []);
+
+  const refreshSubjects = useCallback(async () => {
+    try {
+      const s = await api.getSubjects();
+      setData(prev => ({ ...prev, subjects: s || [] }));
+    } catch (e) { console.error('refreshSubjects:', e); }
+  }, []);
+
+  const refreshAcademicYears = useCallback(async () => {
+    try {
+      const ay = await api.getAcademicYears();
+      setData(prev => ({ ...prev, academicYears: ay || [] }));
+    } catch (e) { console.error('refreshAcademicYears:', e); }
+  }, []);
+
+  const refreshTerms = useCallback(async () => {
+    try {
+      const t = await api.getTerms();
+      setData(prev => ({ ...prev, terms: t || [] }));
+    } catch (e) { console.error('refreshTerms:', e); }
+  }, []);
+
+  const refreshTeacherAssignments = useCallback(async () => {
+    try {
+      const ta = await api.getTeacherAssignments();
+      setData(prev => ({ ...prev, teacherAssignments: ta || [] }));
+    } catch (e) { console.error('refreshTeacherAssignments:', e); }
+  }, []);
+
   const refreshData = useCallback(async () => {
     try {
-      const [studentsRes, classes, teachers, subjects, guardians, invoices, payments, attendance, assignments, exams, grades, academicYears, terms] = await Promise.all([
+      const [studentsRes, classes, teachers, subjects, guardians, invoices, payments, attendance, assignments, exams, grades, academicYears, terms, teacherAssignments] = await Promise.all([
         api.getStudents(),
         api.getClasses(),
         api.getTeachers(),
@@ -112,6 +161,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         api.getGrades(),
         api.getAcademicYears(),
         api.getTerms(),
+        api.getTeacherAssignments(),
       ]);
       setData({
         students: studentsRes.data || [],
@@ -127,6 +177,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         grades: grades || [],
         academicYears: academicYears || [],
         terms: terms || [],
+        teacherAssignments: teacherAssignments || [],
       });
     } catch (e) { console.error('refreshData:', e); }
   }, []);
@@ -164,6 +215,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       language, setLanguage, theme, setTheme, institutionType, setInstitutionType,
       currentUser, setCurrentUser, institution, setInstitution, toggleTheme, toggleLanguage,
       data, loading, schoolId, refreshData, refreshStudents, refreshAttendance, refreshInvoices,
+      refreshTeachers, refreshClasses, refreshSubjects, refreshAcademicYears, refreshTerms,
+      refreshTeacherAssignments,
     }}>
       {children}
     </AppContext.Provider>

@@ -7,17 +7,11 @@ import {
   Users,
   GraduationCap,
   BookOpen,
-  Calendar,
   Settings,
   LogOut,
   School,
-  Building2,
-  Library,
-  Bus,
   FileText,
   CreditCard,
-  Shield,
-  Heart
 } from "lucide-react";
 import { UserRole } from "@/lib/types";
 
@@ -52,12 +46,6 @@ export function Sidebar() {
       roles: ["admin", "teacher"]
     },
     {
-      title: "جدول الحصص",
-      icon: Calendar,
-      path: "/schedule",
-      roles: ["admin", "teacher", "student"]
-    },
-    {
       title: "الامتحانات والنتائج",
       icon: FileText,
       path: "/grades",
@@ -76,45 +64,9 @@ export function Sidebar() {
       roles: ["admin", "teacher", "student", "parent"]
     },
     {
-      title: "التواصل والرسائل",
-      icon: Users,
-      path: "/messages",
-      roles: ["admin", "teacher", "student", "parent"]
-    },
-    {
       title: "التقارير والإحصائيات",
       icon: FileText,
       path: "/reports",
-      roles: ["admin"]
-    },
-    {
-      title: "المكتبة المدرسية",
-      icon: Library,
-      path: "/library",
-      roles: ["admin", "teacher", "student"]
-    },
-    {
-      title: "حركة النقل",
-      icon: Bus,
-      path: "/transport",
-      roles: ["admin", "parent"]
-    },
-    {
-      title: "الأمن والصلاحيات",
-      icon: Shield,
-      path: "/security",
-      roles: ["admin"]
-    },
-    {
-      title: "العيادة المدرسية",
-      icon: Heart,
-      path: "/health",
-      roles: ["admin", "teacher", "student"]
-    },
-    {
-      title: "المرافق والصيانة",
-      icon: Building2,
-      path: "/maintenance",
       roles: ["admin"]
     },
     {

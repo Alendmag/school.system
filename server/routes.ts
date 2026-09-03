@@ -379,6 +379,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
+  // === ACADEMIC YEARS ===
   app.get("/api/academic-years", async (req, res) => {
     const schoolId = requireAuth(req, res); if (!schoolId) return;
     const q = authQuery(req);
@@ -386,11 +387,233 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
   });
 
+  app.post("/api/academic-years", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { name, start_date, end_date, status } = req.body;
+    if (!name || !start_date || !end_date) return res.status(400).json({ message: "اسم السنة وتاريخ البداية والنهاية مطلوبة" });
+    const { data, error } = await q("academic_years", { method: "POST", body: { school_id: schoolId, name, start_date, end_date, status: status || "upcoming" } });
+    if (error) return res.status(500).json({ message: error });
+    res.status(201).json(data?.[0] || data);
+  });
+
+  app.patch("/api/academic-years/:id", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const allowed = ["name", "start_date", "end_date", "status"];
+    const updates: Record<string, any> = {};
+    for (const key of allowed) { if (req.body[key] !== undefined) updates[key] = req.body[key]; }
+    if (Object.keys(updates).length === 0) return res.status(400).json({ message: "لا توجد بيانات للتحديث" });
+    const { data, error } = await q("academic_years", { method: "PATCH", filters: schoolFilter(schoolId) + `&id=eq.${req.params.id}`, body: updates });
+    if (error) return res.status(500).json({ message: error });
+    if (!data || data.length === 0) return res.status(404).json({ message: "السنة الدراسية غير موجودة" });
+    res.json(data[0]);
+  });
+
+  app.delete("/api/academic-years/:id", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data: deps } = await q("terms", { filters: schoolFilter(schoolId) + `&academic_year_id=eq.${req.params.id}`, select: "id", limit: 1 });
+    if (deps && deps.length > 0) return res.status(409).json({ message: "لا يمكن حذف سنة دراسية تحتوي على فصول دراسية" });
+    const { error } = await q("academic_years", { method: "DELETE", filters: schoolFilter(schoolId) + `&id=eq.${req.params.id}` });
+    if (error) return res.status(500).json({ message: error });
+    res.json({ success: true });
+  });
+
+  // === TERMS ===
   app.get("/api/terms", async (req, res) => {
     const schoolId = requireAuth(req, res); if (!schoolId) return;
     const q = authQuery(req);
-    const { data, error } = await q("terms", { filters: schoolFilter(schoolId), select: "*" });
+    let filters = schoolFilter(schoolId);
+    if (req.query.academic_year_id) filters += `&academic_year_id=eq.${req.query.academic_year_id}`;
+    const { data, error } = await q("terms", { filters, select: "*", order: "start_date.asc" });
     if (error) return res.status(500).json({ message: error }); res.json(data || []);
+  });
+
+  app.post("/api/terms", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { academic_year_id, name, start_date, end_date } = req.body;
+    if (!academic_year_id || !name || !start_date || !end_date) return res.status(400).json({ message: "جميع حقول الفصل الدراسي مطلوبة" });
+    const { data: ayCheck } = await q("academic_years", { filters: schoolFilter(schoolId) + `&id=eq.${academic_year_id}`, select: "id", limit: 1 });
+    if (!ayCheck || ayCheck.length === 0) return res.status(400).json({ message: "السنة الدراسية غير موجودة" });
+    const { data, error } = await q("terms", { method: "POST", body: { school_id: schoolId, academic_year_id, name, start_date, end_date } });
+    if (error) return res.status(500).json({ message: error });
+    res.status(201).json(data?.[0] || data);
+  });
+
+  app.patch("/api/terms/:id", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const allowed = ["name", "start_date", "end_date"];
+    const updates: Record<string, any> = {};
+    for (const key of allowed) { if (req.body[key] !== undefined) updates[key] = req.body[key]; }
+    if (Object.keys(updates).length === 0) return res.status(400).json({ message: "لا توجد بيانات للتحديث" });
+    const { data, error } = await q("terms", { method: "PATCH", filters: schoolFilter(schoolId) + `&id=eq.${req.params.id}`, body: updates });
+    if (error) return res.status(500).json({ message: error });
+    if (!data || data.length === 0) return res.status(404).json({ message: "الفصل الدراسي غير موجود" });
+    res.json(data[0]);
+  });
+
+  app.delete("/api/terms/:id", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data: deps } = await q("exams", { filters: schoolFilter(schoolId) + `&term_id=eq.${req.params.id}`, select: "id", limit: 1 });
+    if (deps && deps.length > 0) return res.status(409).json({ message: "لا يمكن حذف فصل يحتوي على اختبارات" });
+    const { error } = await q("terms", { method: "DELETE", filters: schoolFilter(schoolId) + `&id=eq.${req.params.id}` });
+    if (error) return res.status(500).json({ message: error });
+    res.json({ success: true });
+  });
+
+  // === CLASSES (CRUD) ===
+  app.post("/api/classes", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { name, level, capacity, advisor_id } = req.body;
+    if (!name || !level) return res.status(400).json({ message: "اسم الفصل والمرحلة مطلوبان" });
+    const { data, error } = await q("classes", { method: "POST", body: { school_id: schoolId, name, level, capacity: capacity || 30, advisor_id: advisor_id || null } });
+    if (error) return res.status(500).json({ message: error });
+    res.status(201).json(data?.[0] || data);
+  });
+
+  app.patch("/api/classes/:id", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const allowed = ["name", "level", "capacity", "advisor_id"];
+    const updates: Record<string, any> = {};
+    for (const key of allowed) { if (req.body[key] !== undefined) updates[key] = req.body[key]; }
+    if (Object.keys(updates).length === 0) return res.status(400).json({ message: "لا توجد بيانات للتحديث" });
+    const { data, error } = await q("classes", { method: "PATCH", filters: schoolFilter(schoolId) + `&id=eq.${req.params.id}`, body: updates });
+    if (error) return res.status(500).json({ message: error });
+    if (!data || data.length === 0) return res.status(404).json({ message: "الفصل غير موجود" });
+    res.json(data[0]);
+  });
+
+  app.delete("/api/classes/:id", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data: deps } = await q("students", { filters: schoolFilter(schoolId) + `&class_id=eq.${req.params.id}`, select: "id", limit: 1 });
+    if (deps && deps.length > 0) return res.status(409).json({ message: "لا يمكن حذف فصل يحتوي على طلاب" });
+    const { error } = await q("classes", { method: "DELETE", filters: schoolFilter(schoolId) + `&id=eq.${req.params.id}` });
+    if (error) return res.status(500).json({ message: error });
+    res.json({ success: true });
+  });
+
+  // === SUBJECTS (CRUD) ===
+  app.post("/api/subjects", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { name, code } = req.body;
+    if (!name || !code) return res.status(400).json({ message: "اسم المادة والرمز مطلوبان" });
+    const { data, error } = await q("subjects", { method: "POST", body: { school_id: schoolId, name, code } });
+    if (error) return res.status(500).json({ message: error });
+    res.status(201).json(data?.[0] || data);
+  });
+
+  app.patch("/api/subjects/:id", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const allowed = ["name", "code"];
+    const updates: Record<string, any> = {};
+    for (const key of allowed) { if (req.body[key] !== undefined) updates[key] = req.body[key]; }
+    if (Object.keys(updates).length === 0) return res.status(400).json({ message: "لا توجد بيانات للتحديث" });
+    const { data, error } = await q("subjects", { method: "PATCH", filters: schoolFilter(schoolId) + `&id=eq.${req.params.id}`, body: updates });
+    if (error) return res.status(500).json({ message: error });
+    if (!data || data.length === 0) return res.status(404).json({ message: "المادة غير موجودة" });
+    res.json(data[0]);
+  });
+
+  app.delete("/api/subjects/:id", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data: deps } = await q("teacher_assignments", { filters: schoolFilter(schoolId) + `&subject_id=eq.${req.params.id}`, select: "id", limit: 1 });
+    if (deps && deps.length > 0) return res.status(409).json({ message: "لا يمكن حذف مادة مرتبطة بتوزيع معلمين" });
+    const { error } = await q("subjects", { method: "DELETE", filters: schoolFilter(schoolId) + `&id=eq.${req.params.id}` });
+    if (error) return res.status(500).json({ message: error });
+    res.json({ success: true });
+  });
+
+  // === TEACHERS (CRUD) ===
+  app.post("/api/teachers", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { name, email, phone, subject_ids, qualifications, experience_years, join_date, status } = req.body;
+    if (!name) return res.status(400).json({ message: "اسم المعلم مطلوب" });
+    const { data, error } = await q("teachers", { method: "POST", body: {
+      school_id: schoolId, name, email: email || null, phone: phone || null,
+      subject_ids: subject_ids || [], qualifications: qualifications || null,
+      experience_years: experience_years || 0, join_date: join_date || new Date().toISOString().split("T")[0],
+      status: status || "active",
+    }});
+    if (error) return res.status(500).json({ message: error });
+    res.status(201).json(data?.[0] || data);
+  });
+
+  app.patch("/api/teachers/:id", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const allowed = ["name", "email", "phone", "subject_ids", "qualifications", "experience_years", "join_date", "status"];
+    const updates: Record<string, any> = {};
+    for (const key of allowed) { if (req.body[key] !== undefined) updates[key] = req.body[key]; }
+    if (Object.keys(updates).length === 0) return res.status(400).json({ message: "لا توجد بيانات للتحديث" });
+    const { data, error } = await q("teachers", { method: "PATCH", filters: schoolFilter(schoolId) + `&id=eq.${req.params.id}`, body: updates });
+    if (error) return res.status(500).json({ message: error });
+    if (!data || data.length === 0) return res.status(404).json({ message: "المعلم غير موجود" });
+    res.json(data[0]);
+  });
+
+  app.delete("/api/teachers/:id", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { data: deps } = await q("teacher_assignments", { filters: schoolFilter(schoolId) + `&teacher_id=eq.${req.params.id}`, select: "id", limit: 1 });
+    if (deps && deps.length > 0) return res.status(409).json({ message: "لا يمكن حذف معلم لديه توزيع حصص" });
+    const { error } = await q("teachers", { method: "DELETE", filters: schoolFilter(schoolId) + `&id=eq.${req.params.id}` });
+    if (error) return res.status(500).json({ message: error });
+    res.json({ success: true });
+  });
+
+  // === TEACHER ASSIGNMENTS ===
+  app.get("/api/teacher-assignments", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    let filters = schoolFilter(schoolId);
+    if (req.query.academic_year_id) filters += `&academic_year_id=eq.${req.query.academic_year_id}`;
+    if (req.query.teacher_id) filters += `&teacher_id=eq.${req.query.teacher_id}`;
+    if (req.query.class_id) filters += `&class_id=eq.${req.query.class_id}`;
+    const { data, error } = await q("teacher_assignments", { filters, select: "*", order: "created_at.desc" });
+    if (error) return res.status(500).json({ message: error });
+    res.json(data || []);
+  });
+
+  app.post("/api/teacher-assignments", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { teacher_id, subject_id, class_id, academic_year_id } = req.body;
+    if (!teacher_id || !subject_id || !class_id || !academic_year_id) return res.status(400).json({ message: "جميع حقول التوزيع مطلوبة" });
+    const [tCheck, sCheck, cCheck, ayCheck] = await Promise.all([
+      q("teachers", { filters: schoolFilter(schoolId) + `&id=eq.${teacher_id}`, select: "id", limit: 1 }),
+      q("subjects", { filters: schoolFilter(schoolId) + `&id=eq.${subject_id}`, select: "id", limit: 1 }),
+      q("classes", { filters: schoolFilter(schoolId) + `&id=eq.${class_id}`, select: "id", limit: 1 }),
+      q("academic_years", { filters: schoolFilter(schoolId) + `&id=eq.${academic_year_id}`, select: "id", limit: 1 }),
+    ]);
+    if (!tCheck.data?.length) return res.status(400).json({ message: "المعلم غير موجود في هذه المدرسة" });
+    if (!sCheck.data?.length) return res.status(400).json({ message: "المادة غير موجودة في هذه المدرسة" });
+    if (!cCheck.data?.length) return res.status(400).json({ message: "الفصل غير موجود في هذه المدرسة" });
+    if (!ayCheck.data?.length) return res.status(400).json({ message: "السنة الدراسية غير موجودة في هذه المدرسة" });
+    const { data, error } = await q("teacher_assignments", { method: "POST", body: { school_id: schoolId, teacher_id, subject_id, class_id, academic_year_id } });
+    if (error) {
+      if (typeof error === 'string' && error.includes('duplicate')) return res.status(409).json({ message: "هذا التوزيع موجود مسبقاً" });
+      return res.status(500).json({ message: error });
+    }
+    res.status(201).json(data?.[0] || data);
+  });
+
+  app.delete("/api/teacher-assignments/:id", async (req, res) => {
+    const schoolId = requireAuth(req, res); if (!schoolId) return;
+    const q = authQuery(req);
+    const { error } = await q("teacher_assignments", { method: "DELETE", filters: schoolFilter(schoolId) + `&id=eq.${req.params.id}` });
+    if (error) return res.status(500).json({ message: error });
+    res.json({ success: true });
   });
 
   // === REPORTS ===
